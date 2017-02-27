@@ -2,11 +2,11 @@ from wsgiref.simple_server import make_server
 from pyramid.config import Configurator
 from pyramid.view import view_config
 
+import lightstep
 import opentracing
-from pyramid_opentracing import PyramidTracer
 
-# Pass a specific Tracer instance
-base_tracer = opentracing.Tracer()
+# Replace it with another opentracing implementation if desired
+base_tracer = lightstep.Tracer(component_name='pyramid_app', access_token='{your_lightstep_token}')
 
 @view_config(route_name='root', renderer='json')
 def server_index(request):
@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     # Tween setup
     config.add_settings(opentracing_traced_attributes=['host', 'method'])
-    config.add_settings(opentracing_traced_all=True)
+    config.add_settings(opentracing_trace_all=True)
     config.add_settings(opentracing_base_tracer=base_tracer)
     config.include('pyramid_opentracing')
 
