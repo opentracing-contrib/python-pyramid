@@ -8,12 +8,12 @@ def opentracing_tween_factory(handler, registry):
     on the global configuration.
     We set the 'opentracing_tracer' in the settings to, for further reference and usage.
     '''
-    base_tracer = registry.settings.get('opentracing_base_tracer', opentracing.Tracer())
-    traced_attrs = registry.settings.get('opentracing_traced_attributes', [])
-    trace_all = registry.settings.get('opentracing_trace_all', False)
+    base_tracer = registry.settings.get('ot.base_tracer', opentracing.Tracer())
+    traced_attrs = registry.settings.get('ot.traced_attributes', [])
+    trace_all = registry.settings.get('ot.trace_all', False)
 
     tracer = PyramidTracer(base_tracer, trace_all)
-    registry.settings ['opentracing_tracer'] = tracer
+    registry.settings ['ot.tracer'] = tracer
 
     def opentracing_tween(req):
         # if tracing for all requests is disabled, continue with the
