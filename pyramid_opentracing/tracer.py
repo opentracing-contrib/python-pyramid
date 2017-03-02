@@ -45,9 +45,11 @@ class PyramidTracer(object):
         '''
         headers = request.headers
 
+        # use the path here - after calling the handler, we will get the resolved route.
+        operation_name = request.path
+
         # start new span from trace info
         span = None
-        operation_name = request.path # (xxx) fix this thing
         try:
             span_ctx = self._tracer.extract(opentracing.Format.HTTP_HEADERS, headers)
             span = self._tracer.start_span(operation_name=operation_name, child_of=span_ctx)
@@ -71,5 +73,9 @@ class PyramidTracer(object):
     def _finish_tracing(self, request):
         span = self._current_spans.pop(request, None)     
         if span is not None:
+            # Set the actual resolved route as the name of the operation, if any.
+            if hasattr(request, 'matched_route'):
+                span.operation_name = request.matched_route.name
+
             span.finish()
 

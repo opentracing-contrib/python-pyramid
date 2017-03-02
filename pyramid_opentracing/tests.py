@@ -40,9 +40,20 @@ class TestPyramidTracer(unittest.TestCase):
         tracer._apply_tracing(DummyRequest(), [])
 
     def test_apply_tracing_operation(self):
-        tracer = PyramidTracer(DummyTracer(opentracing.SpanContextCorruptedException()))
+        tracer = PyramidTracer(DummyTracer())
         span = tracer._apply_tracing(DummyRequest(), [])
         self.assertEqual('/', span.operation_name)
+
+    def test_apply_tracing_operation_matched(self):
+        tracer = PyramidTracer(DummyTracer())
+        req = DummyRequest()
+
+        span = tracer._apply_tracing(req, [])
+        self.assertEqual('/', span.operation_name)
+
+        req.matched_route = DummyRoute('testing_foo')
+        tracer._finish_tracing(req)
+        self.assertEqual('testing_foo', span.operation_name)
 
     def test_apply_tracing_attrs(self):
         tracer = PyramidTracer(DummyTracer())
@@ -155,6 +166,18 @@ class TestTweenFactory(unittest.TestCase):
         self.assertEqual(3, len(tracer.spans), '#A0')
         self.assertEqual(['/1', '/2', '/3'], map(lambda x: x.operation_name, tracer.spans), '#A1')
 
+    def test_trace_operation_name_matched(self):
+        registry = DummyRegistry()
+        tracer = DummyTracer()
+        registry.settings['ot.base_tracer'] = tracer
+        registry.settings['ot.trace_all'] = True
+
+        req = DummyRequest()
+        req.matched_route = DummyRoute('testing_foo')
+        self._call(registry=registry, request=req)
+        self.assertEqual(1, len(tracer.spans), '#A0')
+        self.assertEqual('testing_foo', tracer.spans[0].operation_name, '#A1')
+
     def test_trace_tags(self):
         registry = DummyRegistry()
         tracer = DummyTracer()
@@ -226,6 +249,10 @@ class DummyConfig(object):
 class DummyRequest(testing.DummyRequest):
     def __init__(self, *args, **kwargs):
         super(DummyRequest, self).__init__(*args, **kwargs)
+
+class DummyRoute(object):
+    def __init__(self, name):
+        self.name = name
 
 class DummyResponse(object):
     def __init__(self, headers={}):
