@@ -57,6 +57,15 @@ class TestPyramidTracer(unittest.TestCase):
         span = tracer._apply_tracing(req, ['host', 'path'])
         self.assertEqual({'host': 'example.com:80', 'path': '/'}, span._tags, '#C0')
 
+    def test_apply_tracing_child(self):
+        tracer = PyramidTracer(DummyTracer(returnContext=True))
+        span = tracer._apply_tracing(DummyRequest(), [])
+        self.assertIsNotNone(span.child_of, '#A0')
+
+        tracer = PyramidTracer(DummyTracer(returnContext=False))
+        span = tracer._apply_tracing(DummyRequest(), [])
+        self.assertIsNone(span.child_of, '#B0')
+
     def test_finish_none(self):
         tracer = PyramidTracer(DummyTracer())
         tracer._finish_tracing(DummyRequest())
@@ -68,19 +77,110 @@ class TestPyramidTracer(unittest.TestCase):
         tracer._finish_tracing(req)
         self.assertTrue(span._is_finished)
 
+    def test_decorator(self):
+        base_tracer = DummyTracer()
+        tracer = PyramidTracer(base_tracer)
+
+        @tracer.trace()
+        def sample_func(req):
+            return "Hello, Tests!"
+
+        sample_func(DummyRequest())
+        self.assertEqual(1, len(base_tracer.spans), '#A0')
+        self.assertEqual({}, base_tracer.spans[0]._tags, '#A1')
+        self.assertEqual(True, base_tracer.spans[0]._is_finished, '#A2')
+
+    def test_decorator_attributes(self):
+        base_tracer = DummyTracer()
+        tracer = PyramidTracer(base_tracer)
+
+        @tracer.trace('method', 'dontexist')
+        def sample_func(req):
+            return "Hello, Tests!"
+
+        sample_func(DummyRequest())
+        self.assertEqual(1, len(base_tracer.spans), '#A0')
+        self.assertEqual({'method': 'GET'}, base_tracer.spans[0]._tags, '#A1')
+        self.assertEqual(True, base_tracer.spans[0]._is_finished, '#A2')
+
 class TestTweenFactory(unittest.TestCase):
 
     def setUp(self):
         self.request = DummyRequest()
         self.response = DummyResponse()
-        self.registry = DummyRegistry()
 
-    def test_it(self):
-        handler = lambda x: self.response
-        factory = opentracing_tween_factory(handler, self.registry)
+    def _call(self, handler=None, registry=None, request=None):
+        if not handler:
+            handler = lambda req: self.response
+        if not registry:
+            registry = DummyRegistry()
+        if not request:
+            request = self.request
 
-        res = factory(self.request)
-        self.assertIsNotNone(self.registry.settings.get('opentracing_tracer'))
+        factory = opentracing_tween_factory(handler, registry)
+        return factory(request)
+
+    def test_default(self):
+        registry = DummyRegistry()
+        res = self._call(registry=registry)
+        self.assertIsNotNone(registry.settings.get('ot.tracer'), '#A0')
+        self.assertFalse(registry.settings.get('ot.tracer')._trace_all, '#A1')
+
+    def test_trace_all(self):
+        registry = DummyRegistry()
+        tracer = DummyTracer()
+        registry.settings['ot.base_tracer'] = tracer
+
+        self._call(registry=registry)
+        self.assertEqual(0, len(tracer.spans), '#A0')
+
+        tracer._clear()
+        registry.settings['ot.trace_all'] = True
+        self._call(registry=registry)
+        self.assertEqual(1, len(tracer.spans), '#B0')
+
+        tracer._clear()
+        registry.settings['ot.trace_all'] = False
+        self._call(registry=registry)
+        self.assertEqual(0, len(tracer.spans), '#C0')
+
+    def test_trace_operation_name(self):
+        registry = DummyRegistry()
+        tracer = DummyTracer()
+
+        registry.settings['ot.base_tracer'] = tracer
+        registry.settings['ot.trace_all'] = True
+        for i in xrange(1, 4):
+            self._call(registry=registry, request=DummyRequest(path='/%s' % i))
+        self.assertEqual(3, len(tracer.spans), '#A0')
+        self.assertEqual(['/1', '/2', '/3'], map(lambda x: x.operation_name, tracer.spans), '#A1')
+
+    def test_trace_tags(self):
+        registry = DummyRegistry()
+        tracer = DummyTracer()
+        registry.settings['ot.base_tracer'] = tracer
+        registry.settings['ot.trace_all'] = True
+
+        registry.settings['ot.traced_attributes'] = ['path', 'method', 'dontexist']
+        self._call(registry=registry, request=DummyRequest(path='/one'))
+        self.assertEqual(1, len(tracer.spans), '#A0')
+        self.assertEqual({'path': '/one', 'method': 'GET'}, tracer.spans[0]._tags, '#A1')
+
+        tracer._clear()
+        registry.settings['ot.traced_attributes'] = []
+        self._call(registry=registry, request=DummyRequest(path='/one'))
+        self.assertEqual(1, len(tracer.spans), '#B0')
+        self.assertEqual({}, tracer.spans[0]._tags, '#B1')
+
+    def test_trace_finished(self):
+        registry = DummyRegistry()
+        tracer = DummyTracer()
+        registry.settings['ot.base_tracer'] = tracer
+        registry.settings['ot.trace_all'] = True
+        self._call(registry=registry)
+
+        self.assertEqual(1, len(tracer.spans), '#A0')
+        self.assertTrue(tracer.spans[0]._is_finished, '#A1')
 
 class TestIncludeme(unittest.TestCase):
 
@@ -90,18 +190,27 @@ class TestIncludeme(unittest.TestCase):
         self.assertEqual([('pyramid_opentracing.opentracing_tween_factory', None, None)], config.tweens, '#A0')
 
 class DummyTracer(object):
-    def __init__(self, excToThrow=None):
+    def __init__(self, excToThrow=None, returnContext=False):
         super(DummyTracer, self).__init__()
         self.excToThrow = excToThrow
+        self.returnContext = returnContext
+        self.spans = []
+
+    def _clear(self):
+        self.spans = []
 
     def extract(self, f, headers):
         if self.excToThrow:
             raise self.excToThrow
+        if self.returnContext:
+            return DummyContext()
 
-        return DummyContext()
+        return None
 
     def start_span(self, operation_name, child_of=None):
-        return DummySpan(operation_name, child_of=child_of)
+        span = DummySpan(operation_name, child_of=child_of)
+        self.spans.append(span)
+        return span
 
 class DummyRegistry(object):
     def __init__(self, settings={}):
