@@ -22,6 +22,9 @@ class PyramidTracer(object):
     def trace(self, *attributes):
         '''
         Function decorator that traces functions
+        NOTE: Must be placed after the @view_config decorator
+        @param attributes any number of pyramid.request.Request attributes
+        (strings) to be set as tags on the created span
         '''
         def decorator(view_func):
             if self._trace_all:
