@@ -192,6 +192,19 @@ class TestTweenFactory(unittest.TestCase):
         self._call(registry=registry)
         self.assertEqual(0, len(tracer.spans), '#C0')
 
+    def test_trace_all_as_str(self):
+        registry = DummyRegistry()
+        tracer = DummyTracer()
+        registry.settings['ot.base_tracer'] = tracer
+
+        registry.settings['ot.trace_all'] = 'false'
+        self._call(registry=registry)
+        self.assertEqual(0, len(tracer.spans), '#A0')
+
+        registry.settings['ot.trace_all'] = 'true'
+        self._call(registry=registry)
+        self.assertEqual(1, len(tracer.spans), '#A0')
+
     def test_trace_operation_name(self):
         registry = DummyRegistry()
         tracer = DummyTracer()
@@ -246,6 +259,17 @@ class TestTweenFactory(unittest.TestCase):
         self._call(registry=registry, request=DummyRequest(path='/one'))
         self.assertEqual(1, len(tracer.spans), '#B0')
         self.assertEqual({}, tracer.spans[0]._tags, '#B1')
+
+    def test_trace_tags_as_str(self):
+        registry = DummyRegistry()
+        tracer = DummyTracer()
+        registry.settings['ot.base_tracer'] = tracer
+        registry.settings['ot.trace_all'] = True
+
+        registry.settings['ot.traced_attributes'] = 'path\nmethod\ndontexist'
+        self._call(registry=registry, request=DummyRequest(path='/one'))
+        self.assertEqual(1, len(tracer.spans), '#A0')
+        self.assertEqual({'path': '/one', 'method': 'GET'}, tracer.spans[0]._tags, '#A1')
 
     def test_trace_finished(self):
         registry = DummyRegistry()
@@ -310,7 +334,9 @@ class DummyTracer(object):
         return span
 
 class DummyRegistry(object):
-    def __init__(self, settings={}):
+    def __init__(self, settings=None):
+        if not settings:
+            settings = {}
         self.settings = settings
 
 class DummyConfig(object):
@@ -329,7 +355,9 @@ class DummyRoute(object):
         self.name = name
 
 class DummyResponse(object):
-    def __init__(self, headers={}):
+    def __init__(self, headers=None):
+        if not headers:
+            headers = {}
         self.headers = headers
 
 class DummyContext(object):

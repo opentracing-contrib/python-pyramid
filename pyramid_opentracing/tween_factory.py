@@ -1,3 +1,5 @@
+from pyramid.settings import asbool, aslist
+
 import opentracing
 
 from .tracer import PyramidTracer
@@ -14,8 +16,8 @@ def opentracing_tween_factory(handler, registry):
     We set the 'opentracing_tracer' in the settings to, for further reference and usage.
     '''
     base_tracer = registry.settings.get('ot.base_tracer', opentracing.Tracer())
-    traced_attrs = registry.settings.get('ot.traced_attributes', [])
-    trace_all = registry.settings.get('ot.trace_all', False)
+    traced_attrs = aslist(registry.settings.get('ot.traced_attributes', []))
+    trace_all = asbool(registry.settings.get('ot.trace_all', False))
 
     if 'ot.base_tracer_func' in registry.settings:
         base_tracer = _call_base_tracer_func(registry.settings.get('ot.base_tracer_func'))
