@@ -114,6 +114,9 @@ class TestPyramidTracer(unittest.TestCase):
         self.assertEqual({'method': 'GET'}, base_tracer.spans[0]._tags, '#A1')
         self.assertEqual(True, base_tracer.spans[0]._is_finished, '#A2')
 
+def base_tracer_func():
+    return DummyTracer()
+
 class TestTweenFactory(unittest.TestCase):
 
     def setUp(self):
@@ -136,6 +139,15 @@ class TestTweenFactory(unittest.TestCase):
         res = self._call(registry=registry)
         self.assertIsNotNone(registry.settings.get('ot.tracer'), '#A0')
         self.assertFalse(registry.settings.get('ot.tracer')._trace_all, '#A1')
+
+    def test_tracer_base_func(self):
+        registry = DummyRegistry()
+        registry.settings['ot.base_tracer_func'] = 'tests.base_tracer_func'
+        registry.settings['ot.trace_all'] = True
+        self._call(registry=registry)
+
+        tracer = registry.settings['ot.tracer']._tracer
+        self.assertEqual(1, len(tracer.spans), '#A0')
 
     def test_trace_all(self):
         registry = DummyRegistry()
