@@ -120,6 +120,25 @@ class TestPyramidTracer(unittest.TestCase):
         self.assertEqual({'method': 'GET'}, base_tracer.spans[0]._tags, '#A1')
         self.assertEqual(True, base_tracer.spans[0]._is_finished, '#A2')
 
+    def test_decorator_exc(self):
+        base_tracer = DummyTracer()
+        tracer = PyramidTracer(base_tracer)
+        req = DummyRequest()
+        req.matched_route = DummyRoute()
+
+        @tracer.trace('method')
+        def sample_func(req):
+            raise ValueError('Testing exception')
+
+        try:
+            sample_func(req)
+        except ValueError:
+            pass
+
+        self.assertIsNone(tracer.get_span(req), '#A0')
+        self.assertEqual(1, len(base_tracer.spans), '#A1')
+        self.assertTrue(base_tracer.spans[0]._is_finished, '#A2')
+
 def base_tracer_func():
     return DummyTracer()
 
@@ -239,6 +258,26 @@ class TestTweenFactory(unittest.TestCase):
         self._call(registry=registry, request=req)
         self.assertEqual(1, len(tracer.spans), '#A0')
         self.assertTrue(tracer.spans[0]._is_finished, '#A1')
+
+    def test_trace_exc(self):
+        registry = DummyRegistry()
+        tracer = DummyTracer()
+        req = DummyRequest()
+        req.matched_route = DummyRoute()
+        registry.settings['ot.base_tracer'] = tracer
+        registry.settings['ot.trace_all'] = True
+
+        def handler(req):
+            raise ValueError('Testing error')
+
+        try:
+            self._call(registry=registry, handler=handler, request=req)
+        except ValueError:
+            pass
+
+        self.assertIsNone(registry.settings['ot.tracer'].get_span(req), '#A0')
+        self.assertEqual(1, len(tracer.spans), '#A1')
+        self.assertTrue(tracer.spans[0]._is_finished, '#A2')
 
 class TestIncludeme(unittest.TestCase):
 

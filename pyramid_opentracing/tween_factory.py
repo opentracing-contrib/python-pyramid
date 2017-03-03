@@ -29,10 +29,11 @@ def opentracing_tween_factory(handler, registry):
         if not trace_all:
             return handler(req)
 
-        span = tracer._apply_tracing(req, traced_attrs)
-        res = handler(req)
-        tracer._finish_tracing(req)
-
+        tracer._apply_tracing(req, traced_attrs)
+        try:
+            res = handler(req)
+        finally:
+            tracer._finish_tracing(req)
         return res
 
     return opentracing_tween

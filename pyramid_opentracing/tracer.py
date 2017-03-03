@@ -30,7 +30,11 @@ class PyramidTracer(object):
             # otherwise, execute the decorator
             def wrapper(request):
                 span = self._apply_tracing(request, list(attributes))
-                r = view_func(request)
+                try:
+                    r = view_func(request)
+                finally:
+                    self._finish_tracing(request)
+
                 self._finish_tracing(request)
                 return r
 
