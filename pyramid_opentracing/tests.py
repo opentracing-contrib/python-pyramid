@@ -84,6 +84,8 @@ class TestPyramidTracer(unittest.TestCase):
     def test_finish(self):
         tracer = PyramidTracer(DummyTracer())
         req = DummyRequest()
+        req.matched_route = DummyRoute()
+
         span = tracer._apply_tracing(req, [])
         tracer._finish_tracing(req)
         self.assertTrue(span._is_finished)
@@ -96,7 +98,9 @@ class TestPyramidTracer(unittest.TestCase):
         def sample_func(req):
             return "Hello, Tests!"
 
-        sample_func(DummyRequest())
+        req = DummyRequest()
+        req.matched_route = DummyRoute()
+        sample_func(req)
         self.assertEqual(1, len(base_tracer.spans), '#A0')
         self.assertEqual({}, base_tracer.spans[0]._tags, '#A1')
         self.assertEqual(True, base_tracer.spans[0]._is_finished, '#A2')
@@ -109,7 +113,9 @@ class TestPyramidTracer(unittest.TestCase):
         def sample_func(req):
             return "Hello, Tests!"
 
-        sample_func(DummyRequest())
+        req = DummyRequest()
+        req.matched_route = DummyRoute()
+        sample_func(req)
         self.assertEqual(1, len(base_tracer.spans), '#A0')
         self.assertEqual({'method': 'GET'}, base_tracer.spans[0]._tags, '#A1')
         self.assertEqual(True, base_tracer.spans[0]._is_finished, '#A2')
@@ -190,6 +196,21 @@ class TestTweenFactory(unittest.TestCase):
         self.assertEqual(1, len(tracer.spans), '#A0')
         self.assertEqual('testing_foo', tracer.spans[0].operation_name, '#A1')
 
+    def test_trace_operation_name_matched_none(self):
+        registry = DummyRegistry()
+        tracer = DummyTracer()
+        registry.settings['ot.base_tracer'] = tracer
+        registry.settings['ot.trace_all'] = True
+
+        # With a matched_route explicitly set to None, spans should be dropped
+        # i.e. not finished
+        req = DummyRequest()
+        req.matched_route = None
+        self._call(registry=registry, request=req)
+        self.assertEqual(1, len(tracer.spans), '#A0')
+        self.assertEqual('/', tracer.spans[0].operation_name, '#A1')
+        self.assertFalse(tracer.spans[0]._is_finished, '#A2')
+
     def test_trace_tags(self):
         registry = DummyRegistry()
         tracer = DummyTracer()
@@ -212,8 +233,10 @@ class TestTweenFactory(unittest.TestCase):
         tracer = DummyTracer()
         registry.settings['ot.base_tracer'] = tracer
         registry.settings['ot.trace_all'] = True
-        self._call(registry=registry)
 
+        req = DummyRequest()
+        req.matched_route = DummyRoute()
+        self._call(registry=registry, request=req)
         self.assertEqual(1, len(tracer.spans), '#A0')
         self.assertTrue(tracer.spans[0]._is_finished, '#A1')
 
@@ -263,7 +286,7 @@ class DummyRequest(testing.DummyRequest):
         super(DummyRequest, self).__init__(*args, **kwargs)
 
 class DummyRoute(object):
-    def __init__(self, name):
+    def __init__(self, name=''):
         self.name = name
 
 class DummyResponse(object):
@@ -279,6 +302,7 @@ class DummySpan(object):
         self.operation_name = operation_name
         self.child_of = child_of
         self._tags = {}
+        self._is_finished = False
 
     def set_tag(self, name, value):
         self._tags[name] = value

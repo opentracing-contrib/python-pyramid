@@ -72,10 +72,8 @@ class PyramidTracer(object):
 
     def _finish_tracing(self, request):
         span = self._current_spans.pop(request, None)     
-        if span is not None:
-            # Set the actual resolved route as the name of the operation, if any.
-            if hasattr(request, 'matched_route'):
-                span.operation_name = request.matched_route.name
-
+        if span is not None and getattr(request, 'matched_route', None) is not None:
+            # Set the final resolved path, or else drop it (not found, redirected, etc).
+            span.operation_name = request.matched_route.name
             span.finish()
 
