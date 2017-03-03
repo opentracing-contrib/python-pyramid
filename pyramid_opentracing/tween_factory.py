@@ -1,4 +1,5 @@
 from pyramid.settings import asbool, aslist
+from pyramid.tweens import INGRESS
 
 import opentracing
 
@@ -45,5 +46,5 @@ def includeme(config):
     Set up an implicit 'tween' to do tracing on all the requests, with
     optionally including fields on the request object (method, url, path, etc).
     '''
-    config.add_tween('pyramid_opentracing.opentracing_tween_factory')
+    config.add_tween('pyramid_opentracing.opentracing_tween_factory', under=INGRESS)
 

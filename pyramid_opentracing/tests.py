@@ -1,5 +1,6 @@
 import unittest
 from pyramid import testing
+from pyramid.tweens import INGRESS
 import opentracing
 
 from tracer import PyramidTracer
@@ -308,7 +309,7 @@ class TestIncludeme(unittest.TestCase):
     def test_it(self):
         config = DummyConfig()
         includeme(config)
-        self.assertEqual([('pyramid_opentracing.opentracing_tween_factory', None, None)], config.tweens, '#A0')
+        self.assertEqual([('pyramid_opentracing.opentracing_tween_factory', INGRESS, None)], config.tweens, '#A0')
 
 class DummyTracer(object):
     def __init__(self, excToThrow=None, returnContext=False):
