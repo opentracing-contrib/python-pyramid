@@ -40,8 +40,9 @@ In order to implement tracing in your system (for all the requests), add the fol
     # 1. A tracer object itself.
     config.add_attributes({'ot.base_tracer': ...})
 
-    # 2. Or a module-level function that returns a tracer object.
-    config.add_attributes({'ot.base_tracer_func', 'my_main_module.utils.get_tracer')
+    # 2. Or a module-level function that returns a tracer object,
+    #    receiving the settings, such as: create_tracer(**settings)
+    config.add_attributes({'ot.base_tracer_func', 'my_main_module.utils.create_tracer')
 
     # enable the tween
     config.include('pyramid_opentracing')

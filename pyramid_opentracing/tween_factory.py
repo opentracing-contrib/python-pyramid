@@ -5,10 +5,10 @@ import opentracing
 
 from .tracer import PyramidTracer
 
-def _call_base_tracer_func(full_name):
+def _call_base_tracer_func(full_name, settings):
     mod_name, func_name = full_name.rsplit('.', 1)
     mod = __import__(mod_name, globals(), locals(), ['object'], -1)
-    return getattr(mod, func_name)()
+    return getattr(mod, func_name)(**settings)
 
 def opentracing_tween_factory(handler, registry):
     '''
@@ -21,7 +21,8 @@ def opentracing_tween_factory(handler, registry):
     trace_all = asbool(registry.settings.get('ot.trace_all', False))
 
     if 'ot.base_tracer_func' in registry.settings:
-        base_tracer = _call_base_tracer_func(registry.settings.get('ot.base_tracer_func'))
+        base_tracer_func = registry.settings.get('ot.base_tracer_func')
+        base_tracer = _call_base_tracer_func(base_tracer_func, registry.settings)
 
     tracer = PyramidTracer(base_tracer, trace_all)
     registry.settings ['ot.tracer'] = tracer

@@ -140,8 +140,10 @@ class TestPyramidTracer(unittest.TestCase):
         self.assertEqual(1, len(base_tracer.spans), '#A1')
         self.assertTrue(base_tracer.spans[0]._is_finished, '#A2')
 
-def base_tracer_func():
-    return DummyTracer()
+def base_tracer_func(**settings):
+    tracer = DummyTracer()
+    tracer.component_name = settings['component_name']
+    return tracer
 
 class TestTweenFactory(unittest.TestCase):
 
@@ -168,12 +170,17 @@ class TestTweenFactory(unittest.TestCase):
 
     def test_tracer_base_func(self):
         registry = DummyRegistry()
+        registry.settings['component_name'] = 'MyComponent'
         registry.settings['ot.base_tracer_func'] = 'tests.base_tracer_func'
         registry.settings['ot.trace_all'] = True
         self._call(registry=registry)
 
         tracer = registry.settings['ot.tracer']._tracer
         self.assertEqual(1, len(tracer.spans), '#A0')
+
+        # Assert the settings information was properly
+        # propagated.
+        self.assertEqual('MyComponent', tracer.component_name, '#B0')
 
     def test_trace_all(self):
         registry = DummyRegistry()
