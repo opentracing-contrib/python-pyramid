@@ -5,7 +5,8 @@ This directory contains examples of sites with tracing implementing using the py
 Navigate to this directory and then run:
 
 ```
-> python example-file.py
+> cd example-directory/
+> python main.py
 ```
 
 For the tween example, open in your browser `localhost:8080/`, `localhost:8080/simple` or `localhost:8080/log`.
@@ -13,7 +14,8 @@ For the tween example, open in your browser `localhost:8080/`, `localhost:8080/s
 For the client-server example, open in your browser `localhost:8080/client/simple`, `localhost:8080/client/log` or `localhost:8080/client/childspan`.
 
 To log extra attributes for the Pyramid request object, include them in the configuration:
-.. code-block:: python
-config.add_settings(opentracing_traced_attributes=['host', 'method', 'other_attribute'])
 
+.. code-block:: python
+
+    config.add_settings({'ot.traced_attributes': ['host', 'method', 'other_attribute']})
 
