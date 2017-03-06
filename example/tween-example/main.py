@@ -29,9 +29,9 @@ if __name__ == '__main__':
     config.scan()
 
     # Tween setup
-    config.add_settings(opentracing_traced_attributes=['host', 'method'])
-    config.add_settings(opentracing_trace_all=True)
-    config.add_settings(opentracing_base_tracer=base_tracer)
+    config.add_settings({'ot.traced_attributes': ['host', 'method']})
+    config.add_settings({'ot.trace_all': True})
+    config.add_settings({'ot.base_tracer': base_tracer})
     config.include('pyramid_opentracing')
 
     app = config.make_wsgi_app()

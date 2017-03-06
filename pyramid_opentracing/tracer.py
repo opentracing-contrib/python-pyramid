@@ -22,6 +22,9 @@ class PyramidTracer(object):
     def trace(self, *attributes):
         '''
         Function decorator that traces functions
+        NOTE: Must be placed after the @view_config decorator
+        @param attributes any number of pyramid.request.Request attributes
+        (strings) to be set as tags on the created span
         '''
         def decorator(view_func):
             if self._trace_all:
@@ -30,7 +33,11 @@ class PyramidTracer(object):
             # otherwise, execute the decorator
             def wrapper(request):
                 span = self._apply_tracing(request, list(attributes))
-                r = view_func(request)
+                try:
+                    r = view_func(request)
+                finally:
+                    self._finish_tracing(request)
+
                 self._finish_tracing(request)
                 return r
 
@@ -45,9 +52,11 @@ class PyramidTracer(object):
         '''
         headers = request.headers
 
+        # use the path here - after calling the handler, we will get the resolved route.
+        operation_name = request.path
+
         # start new span from trace info
         span = None
-        operation_name = request.path # (xxx) fix this thing
         try:
             span_ctx = self._tracer.extract(opentracing.Format.HTTP_HEADERS, headers)
             span = self._tracer.start_span(operation_name=operation_name, child_of=span_ctx)
@@ -70,6 +79,8 @@ class PyramidTracer(object):
 
     def _finish_tracing(self, request):
         span = self._current_spans.pop(request, None)     
-        if span is not None:
+        if span is not None and getattr(request, 'matched_route', None) is not None:
+            # Set the final resolved path, or else drop it (not found, redirected, etc).
+            span.operation_name = request.matched_route.name
             span.finish()
 
