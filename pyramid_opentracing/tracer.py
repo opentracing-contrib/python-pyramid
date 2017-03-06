@@ -52,7 +52,7 @@ class PyramidTracer(object):
         '''
         headers = request.headers
 
-        # use the path here - after calling the handler, we will get the resolved route.
+        # use the path (without GET arguments) as the operation name.
         operation_name = request.path
 
         # start new span from trace info
@@ -79,8 +79,6 @@ class PyramidTracer(object):
 
     def _finish_tracing(self, request):
         span = self._current_spans.pop(request, None)     
-        if span is not None and getattr(request, 'matched_route', None) is not None:
-            # Set the final resolved path, or else drop it (not found, redirected, etc).
-            span.operation_name = request.matched_route.name
+        if span is not None:
             span.finish()
 

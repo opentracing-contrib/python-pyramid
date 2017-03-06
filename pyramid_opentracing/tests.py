@@ -40,21 +40,14 @@ class TestPyramidTracer(unittest.TestCase):
         tracer = PyramidTracer(DummyTracer(opentracing.SpanContextCorruptedException()))
         tracer._apply_tracing(DummyRequest(), [])
 
-    def test_apply_tracing_operation(self):
-        tracer = PyramidTracer(DummyTracer())
-        span = tracer._apply_tracing(DummyRequest(), [])
-        self.assertEqual('/', span.operation_name)
-
-    def test_apply_tracing_operation_matched(self):
+    def test_apply_tracing_operation_name(self):
         tracer = PyramidTracer(DummyTracer())
         req = DummyRequest()
+        req.matched_route = DummyRoute('testing_foo')
 
         span = tracer._apply_tracing(req, [])
-        self.assertEqual('/', span.operation_name)
-
-        req.matched_route = DummyRoute('testing_foo')
         tracer._finish_tracing(req)
-        self.assertEqual('testing_foo', span.operation_name)
+        self.assertEqual('/', span.operation_name)
 
     def test_apply_tracing_attrs(self):
         tracer = PyramidTracer(DummyTracer())
@@ -220,21 +213,13 @@ class TestTweenFactory(unittest.TestCase):
         registry.settings['ot.base_tracer'] = tracer
         registry.settings['ot.trace_all'] = True
         for i in xrange(1, 4):
-            self._call(registry=registry, request=DummyRequest(path='/%s' % i))
+            req = DummyRequest(path='/%s' % i, path_qs='/%s?q=123', params={'q': '123'})
+            req.matched_route = DummyRoute(i)
+            self._call(registry=registry, request=req)
+
+        # We should be taking the *path* as operation_name
         self.assertEqual(3, len(tracer.spans), '#A0')
         self.assertEqual(['/1', '/2', '/3'], map(lambda x: x.operation_name, tracer.spans), '#A1')
-
-    def test_trace_operation_name_matched(self):
-        registry = DummyRegistry()
-        tracer = DummyTracer()
-        registry.settings['ot.base_tracer'] = tracer
-        registry.settings['ot.trace_all'] = True
-
-        req = DummyRequest()
-        req.matched_route = DummyRoute('testing_foo')
-        self._call(registry=registry, request=req)
-        self.assertEqual(1, len(tracer.spans), '#A0')
-        self.assertEqual('testing_foo', tracer.spans[0].operation_name, '#A1')
 
     def test_trace_operation_name_matched_none(self):
         registry = DummyRegistry()
@@ -242,14 +227,13 @@ class TestTweenFactory(unittest.TestCase):
         registry.settings['ot.base_tracer'] = tracer
         registry.settings['ot.trace_all'] = True
 
-        # With a matched_route explicitly set to None, spans should be dropped
-        # i.e. not finished
+        # Requests without url matching should be traced too.
         req = DummyRequest()
         req.matched_route = None
         self._call(registry=registry, request=req)
         self.assertEqual(1, len(tracer.spans), '#A0')
         self.assertEqual('/', tracer.spans[0].operation_name, '#A1')
-        self.assertFalse(tracer.spans[0]._is_finished, '#A2')
+        self.assertTrue(tracer.spans[0]._is_finished, '#A2')
 
     def test_trace_tags(self):
         registry = DummyRegistry()
