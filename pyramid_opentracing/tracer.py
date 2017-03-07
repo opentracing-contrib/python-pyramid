@@ -35,8 +35,9 @@ class PyramidTracer(object):
                 span = self._apply_tracing(request, list(attributes))
                 try:
                     r = view_func(request)
-                finally:
-                    self._finish_tracing(request)
+                except:
+                    self._finish_tracing(request, error=True)
+                    raise
 
                 self._finish_tracing(request)
                 return r
@@ -74,11 +75,21 @@ class PyramidTracer(object):
                 payload = str(getattr(request, attr))
                 if payload:
                     span.set_tag(attr, payload)
-        
+
         return span
 
-    def _finish_tracing(self, request):
+    def _finish_tracing(self, request, error=False):
         span = self._current_spans.pop(request, None)     
-        if span is not None:
-            span.finish()
+        if span is None:
+            return
+
+        # Decorate some predefined tags.
+        span.set_tag('component', 'pyramid')
+
+        if error:
+            span.set_tag('error', 'true')
+        if getattr(request, 'matched_route', None) is not None:
+            span.set_tag('pyramid.route', request.matched_route.name)
+
+        span.finish()
 

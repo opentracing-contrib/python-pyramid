@@ -36,8 +36,11 @@ def opentracing_tween_factory(handler, registry):
         tracer._apply_tracing(req, traced_attrs)
         try:
             res = handler(req)
-        finally:
-            tracer._finish_tracing(req)
+        except:
+            tracer._finish_tracing(req, error=True)
+            raise
+
+        tracer._finish_tracing(req)
         return res
 
     return opentracing_tween
