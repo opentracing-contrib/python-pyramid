@@ -1,6 +1,6 @@
-##################
+###################
 Pyramid Opentracing
-##################
+###################
 
 This package enables distributed tracing in Pyramid projects via `The OpenTracing Project`_. Once a production system contends with real concurrency or splits into many services, crucial (and formerly easy) tasks become difficult: user-facing latency optimization, root-cause analysis of backend errors, communication about distinct pieces of a now-distributed system, etc. Distributed tracing follows a request on its journey from inception to completion from mobile/browser all the way to the microservices.
 
@@ -19,7 +19,7 @@ Run the following command::
     $ pip install pyramid_opentracing
 
 Setting up Tracing for All Requests
-==================
+===================================
 
 In order to implement tracing in your system (for all the requests), add the following lines of code to your site's Configuration section to enable the tracing tween:
 
@@ -82,17 +82,17 @@ This tracing method doesn't use the tween, so there's no need to include that on
 The optional arguments allow for tracing of request attributes. For example, if you want to trace metadata, you could pass in `@tracer.trace('headers')` and request.headers would be set as a tag on all spans for this view function.
 
 Examples
-=======
+========
 
-Here is an `example`_ of a Pyramid application that uses the Pyramid tween to log all
+Here is an `tween example`_ of a Pyramid application that uses the Pyramid tween to log all
 requests:
 
-.. _example: https://github.com/carlosalberto/python-pyramid/tree/master/example/tween-example/main.py
+.. _tween example: https://github.com/carlosalberto/python-pyramid/tree/master/example/tween-example/main.py
 
-Here is an `example`_ of an application that acts as both a client and server,
+Here is an `client server example`_ of an application that acts as both a client and server,
 with a manually managed tracer (you will need to install the `waitress` module).
 
-.. _example: https://github.com/carlosalberto/python-pyramid/tree/master/example/client-server/main.py
+.. _client server example: https://github.com/carlosalberto/python-pyramid/tree/master/example/client-server/main.py
 
 Other examples are included under the examples directrory.
 
