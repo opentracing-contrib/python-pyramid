@@ -63,8 +63,6 @@ class PyramidTracer(object):
             span = self._tracer.start_span(operation_name=operation_name, child_of=span_ctx)
         except (opentracing.InvalidCarrierException, opentracing.SpanContextCorruptedException) as e:
             span = self._tracer.start_span(operation_name=operation_name)
-        if span is None:
-            span = self._tracer.start_span(operation_name=operation_name)
 
         # add span to current spans 
         self._current_spans[request] = span
