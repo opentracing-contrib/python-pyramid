@@ -20,8 +20,8 @@ def server_simple(request):
 @view_config(route_name='log', renderer='json')
 @tracer.trace()
 def server_log(request):
-    if tracer.get_span(request) is not None:
-        span.log_event('Hello, World!')
+    span = tracer.get_span(request)
+    span.log_event('Hello, World!')
     return { 'message': 'Something was logged' }
 
 if __name__ == '__main__':
