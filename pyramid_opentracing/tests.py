@@ -53,9 +53,11 @@ class TestPyramidTracer(unittest.TestCase):
         tracer = PyramidTracer(DummyTracer())
         req = DummyRequest()
 
+        # Make sure component is available since the start.
         span = tracer._apply_tracing(req, [])
+        self.assertEqual({'component': 'pyramid'}, span._tags, 'A#0')
         tracer._finish_tracing(req)
-        self.assertEqual({'component': 'pyramid'}, span._tags, '#A0')
+        self.assertEqual({'component': 'pyramid'}, span._tags, '#A1')
 
         span = tracer._apply_tracing(req, ['dont', 'exist'])
         tracer._finish_tracing(req)
@@ -109,11 +111,12 @@ class TestPyramidTracer(unittest.TestCase):
 
         @tracer.trace()
         def sample_func(req):
+            tracer.get_span(req).set_tag('component', 'pyramid-custom')
             return "Hello, Tests!"
 
         sample_func(DummyRequest())
         self.assertEqual(1, len(base_tracer.spans), '#A0')
-        self.assertEqual({'component': 'pyramid'}, base_tracer.spans[0]._tags, '#A1')
+        self.assertEqual({'component': 'pyramid-custom'}, base_tracer.spans[0]._tags, '#A1')
         self.assertEqual(True, base_tracer.spans[0]._is_finished, '#A2')
 
     def test_decorator_attributes(self):
@@ -307,6 +310,24 @@ class TestTweenFactory(unittest.TestCase):
             'component': 'pyramid',
             'path': '/one',
             'method': 'GET',
+        }, tracer.spans[0]._tags, '#A0')
+
+    def test_trace_tags_override(self):
+        registry = DummyRegistry()
+        tracer = DummyTracer()
+        registry.settings['ot.base_tracer'] = tracer
+        registry.settings['ot.trace_all'] = True
+        registry.settings['ot.traced_attributes'] = ['method']
+
+        def handler(req):
+            span = registry.settings['ot.tracer'].get_span(req)
+            span.set_tag('component', 'pyramid-custom')
+            span.set_tag('method', 'POST')
+
+        self._call(handler=handler, registry=registry)
+        self.assertEqual({
+            'component': 'pyramid-custom',
+            'method': 'POST'
         }, tracer.spans[0]._tags, '#A0')
 
     def test_trace_finished(self):

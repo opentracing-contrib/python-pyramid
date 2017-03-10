@@ -74,15 +74,15 @@ class PyramidTracer(object):
                 if payload:
                     span.set_tag(attr, payload)
 
+        # Put the component tag before finishing, so the user can override it.
+        span.set_tag('component', 'pyramid')
+
         return span
 
     def _finish_tracing(self, request, error=False):
         span = self._current_spans.pop(request, None)     
         if span is None:
             return
-
-        # Decorate some predefined tags.
-        span.set_tag('component', 'pyramid')
 
         if error:
             span.set_tag('error', 'true')
