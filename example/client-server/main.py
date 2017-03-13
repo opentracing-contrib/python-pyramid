@@ -70,17 +70,15 @@ def server_simple(request):
 @tracer.trace()
 def server_log(request):
     span = tracer.get_span(request)
-    if span is not None:
-        span.log_event('Hello, world!')
+    span.log_event('Hello, world!')
     return {'message': 'Something was logged'}
 
 @view_config(route_name='server_child_span', renderer='json')
 @tracer.trace()
 def server_child_span(request):
     span = tracer.get_span(request)
-    if span is not None:
-        child_span = tracer._tracer.start_span('child_span', child_of=span.context)
-        child_span.finish()
+    child_span = tracer._tracer.start_span('child_span', child_of=span.context)
+    child_span.finish()
     return {'message': 'A child span was created'}
 
 if __name__ == '__main__':

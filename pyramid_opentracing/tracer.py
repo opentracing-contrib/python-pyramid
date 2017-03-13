@@ -35,8 +35,9 @@ class PyramidTracer(object):
                 span = self._apply_tracing(request, list(attributes))
                 try:
                     r = view_func(request)
-                finally:
-                    self._finish_tracing(request)
+                except:
+                    self._finish_tracing(request, error=True)
+                    raise
 
                 self._finish_tracing(request)
                 return r
@@ -52,7 +53,7 @@ class PyramidTracer(object):
         '''
         headers = request.headers
 
-        # use the path here - after calling the handler, we will get the resolved route.
+        # use the path (without GET arguments) as the operation name.
         operation_name = request.path
 
         # start new span from trace info
@@ -61,8 +62,6 @@ class PyramidTracer(object):
             span_ctx = self._tracer.extract(opentracing.Format.HTTP_HEADERS, headers)
             span = self._tracer.start_span(operation_name=operation_name, child_of=span_ctx)
         except (opentracing.InvalidCarrierException, opentracing.SpanContextCorruptedException) as e:
-            span = self._tracer.start_span(operation_name=operation_name)
-        if span is None:
             span = self._tracer.start_span(operation_name=operation_name)
 
         # add span to current spans 
@@ -74,13 +73,21 @@ class PyramidTracer(object):
                 payload = str(getattr(request, attr))
                 if payload:
                     span.set_tag(attr, payload)
-        
+
+        # Put the component tag before finishing, so the user can override it.
+        span.set_tag('component', 'pyramid')
+
         return span
 
-    def _finish_tracing(self, request):
+    def _finish_tracing(self, request, error=False):
         span = self._current_spans.pop(request, None)     
-        if span is not None and getattr(request, 'matched_route', None) is not None:
-            # Set the final resolved path, or else drop it (not found, redirected, etc).
-            span.operation_name = request.matched_route.name
-            span.finish()
+        if span is None:
+            return
+
+        if error:
+            span.set_tag('error', 'true')
+        if getattr(request, 'matched_route', None) is not None:
+            span.set_tag('pyramid.route', request.matched_route.name)
+
+        span.finish()
 
