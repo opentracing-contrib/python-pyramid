@@ -58,6 +58,8 @@ Alternatively, you can configure the tween through an INI file:
     ot.base_tracer_func = my_main_module.utils.get_tracer
     pyramid.includes = pyramid_opentracing
 
+Once the tween has been included, an instance of PyramidTracer will be exist in registry.settings['ot.tracer'] for any further reference.
+
 **Note:** Valid request attributes to trace are listed [here](http://docs.pylonsproject.org/projects/pyramid/en/latest/api/request.html#pyramid.request.Request). When you trace an attribute, this means that created spans will have tags with the attribute name and the request's value.
 
 Tracing Individual Requests
