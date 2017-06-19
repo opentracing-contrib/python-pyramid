@@ -5,10 +5,13 @@ import opentracing
 
 from .tracer import PyramidTracer
 
-def _call_base_tracer_func(full_name, settings):
+def _get_function_from_name(full_name):
     mod_name, func_name = full_name.rsplit('.', 1)
     mod = __import__(mod_name, globals(), locals(), ['object'], -1)
-    return getattr(mod, func_name)(**settings)
+    return getattr(mod, func_name, None)
+
+def _call_base_tracer_func(full_name, settings):
+    return _get_function_from_name(full_name)(**settings)
 
 def opentracing_tween_factory(handler, registry):
     '''
@@ -19,12 +22,18 @@ def opentracing_tween_factory(handler, registry):
     base_tracer = registry.settings.get('ot.base_tracer', opentracing.Tracer())
     traced_attrs = aslist(registry.settings.get('ot.traced_attributes', []))
     trace_all = asbool(registry.settings.get('ot.trace_all', False))
+    operation_name_func = None
 
     if 'ot.base_tracer_func' in registry.settings:
         base_tracer_func = registry.settings.get('ot.base_tracer_func')
         base_tracer = _call_base_tracer_func(base_tracer_func, registry.settings)
 
-    tracer = PyramidTracer(base_tracer, trace_all)
+    if 'ot.operation_name_func' in registry.settings:
+        operation_name_func = registry.settings.get('ot.operation_name_func')
+        if not callable(operation_name_func):
+            operation_name_func = _get_function_from_name(operation_name_func)
+
+    tracer = PyramidTracer(base_tracer, trace_all, operation_name_func)
     registry.settings ['ot.tracer'] = tracer
 
     def opentracing_tween(req):

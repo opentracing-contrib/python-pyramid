@@ -34,6 +34,10 @@ In order to implement tracing in your system (for all the requests), add the fol
     # only valid if 'opentracing_trace_all' == True
     config.add_attributes({'ot.traced_attributes': ['host', 'method', ...]})
 
+    # a module-level function that returns the operation name for a request object.
+    # defaults to the matched route name or request's method if none.
+    config.add_attributes({'ot.operation_name_func': 'my_main_module.get_operation_name_func'})
+
     # One valid underlying OpenTracing implementation as
     # one either one of these two values:
 
@@ -53,6 +57,7 @@ Alternatively, you can configure the tween through an INI file:
 
     [app:myapp]
     ot.trace_all = true
+    ot.operation_name_func = my_main_module.get_operation_name_func
     ot.traced_attributes = host
                           method
     ot.base_tracer_func = my_main_module.utils.get_tracer

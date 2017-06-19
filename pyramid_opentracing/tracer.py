@@ -1,6 +1,17 @@
 import opentracing
 
 
+def default_operation_name_func(request):
+    """
+    @param request
+    Returns the request matched route name, if any, as
+    operation name, else returning the request's method.
+    """
+    if getattr(request, 'matched_route', None) is None:
+        return request.method
+
+    return request.matched_route.name
+
 # Ported from the Django library:
 # https://github.com/opentracing-contrib/python-django
 class PyramidTracer(object):
@@ -8,10 +19,14 @@ class PyramidTracer(object):
     @param tracer the OpenTracing tracer to be used
     to trace requests using this PyramidTracer
     '''
-    def __init__(self, tracer, trace_all=False):
+    def __init__(self, tracer, trace_all=False, operation_name_func=None):
         self._tracer = tracer
         self._trace_all = trace_all
         self._current_spans = {}
+        self._operation_name_func = operation_name_func
+
+        if self._operation_name_func is None:
+            self._operation_name_func = default_operation_name_func
 
     def get_span(self, request):
         '''
@@ -54,12 +69,7 @@ class PyramidTracer(object):
         '''
         headers = request.headers
 
-        # Use the route name (if any) as operation name,
-        # falling back to the request's method.
-        if getattr(request, 'matched_route', None) is not None:
-            operation_name = request.matched_route.name
-        else:
-            operation_name = request.method
+        operation_name = self._operation_name_func(request)
 
         # start new span from trace info
         span = None

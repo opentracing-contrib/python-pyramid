@@ -3,7 +3,7 @@ from pyramid import testing
 from pyramid.tweens import INGRESS
 import opentracing
 
-from tracer import PyramidTracer
+from tracer import PyramidTracer, default_operation_name_func
 from tween_factory import includeme, opentracing_tween_factory
 
 class TestPyramidTracer(unittest.TestCase):
@@ -12,6 +12,8 @@ class TestPyramidTracer(unittest.TestCase):
         self.assertIsNotNone(tracer._tracer, '#A0')
         self.assertFalse(tracer._trace_all, '#A1')
         self.assertEqual({}, tracer._current_spans, '#A2')
+        self.assertEqual(default_operation_name_func,
+                         tracer._operation_name_func, '#A3')
 
     def test_ctor(self):
         tracer = PyramidTracer(DummyTracer(), trace_all=True)
@@ -19,6 +21,13 @@ class TestPyramidTracer(unittest.TestCase):
 
         tracer = PyramidTracer(DummyTracer(), trace_all=False)
         self.assertFalse(tracer._trace_all, '#B0')
+
+    def test_ctor2(self):
+        def test_func(request):
+            return None
+
+        tracer = PyramidTracer(DummyTracer(), operation_name_func=test_func)
+        self.assertEqual(test_func, tracer._operation_name_func, '#A0')
 
     def test_get_span_none(self):
         tracer = PyramidTracer(DummyTracer())
@@ -49,6 +58,19 @@ class TestPyramidTracer(unittest.TestCase):
         tracer._finish_tracing(req)
         self.assertEqual('testing_foo', span.operation_name)
 
+    def test_apply_tracing_operation_name_func(self):
+        def test_func(request):
+            self.assertIsNotNone(request)
+            return 'testing_name'
+
+        tracer = PyramidTracer(DummyTracer(), operation_name_func=test_func)
+        req = DummyRequest()
+        req.matched_route = DummyRoute('testing_foo')
+
+        span = tracer._apply_tracing(req, [])
+        tracer._finish_tracing(req)
+        self.assertEqual('testing_name', span.operation_name)
+      
     def test_apply_tracing_attrs(self):
         tracer = PyramidTracer(DummyTracer())
         req = DummyRequest()
@@ -163,6 +185,9 @@ def base_tracer_func(**settings):
     tracer.component_name = settings['component_name']
     return tracer
 
+def operation_name_func(request):
+    return 'testing_name'
+
 class TestTweenFactory(unittest.TestCase):
 
     def setUp(self):
@@ -245,6 +270,42 @@ class TestTweenFactory(unittest.TestCase):
         # We should be taking the *path* as operation_name
         self.assertEqual(3, len(tracer.spans), '#A0')
         self.assertEqual(['1', '2', '3'], map(lambda x: x.operation_name, tracer.spans), '#A1')
+
+    def test_trace_operation_name_func(self):
+        registry = DummyRegistry()
+        tracer = DummyTracer()
+
+        registry.settings['ot.base_tracer'] = tracer
+        registry.settings['ot.trace_all'] = True
+        registry.settings['ot.operation_name_func'] = 'tests.operation_name_func'
+
+        for i in xrange(1, 4):
+            req = DummyRequest(path='/%s' % i)
+            req.matched_route = DummyRoute(str(i))
+            self._call(registry=registry, request=req)
+
+        # 'tests.operation_name_func' returns always 'testing_name'
+        self.assertEqual(3, len(tracer.spans), '#A0')
+        self.assertTrue(all(map(lambda x: x.operation_name == 'testing_name', tracer.spans)),
+                         '#A1')
+
+    def test_trace_operation_name_func2(self):
+        registry = DummyRegistry()
+        tracer = DummyTracer()
+
+        registry.settings['ot.base_tracer'] = tracer
+        registry.settings['ot.trace_all'] = True
+        registry.settings['ot.operation_name_func'] = operation_name_func
+
+        for i in xrange(1, 4):
+            req = DummyRequest(path='/%s' % i)
+            req.matched_route = DummyRoute(str(i))
+            self._call(registry=registry, request=req)
+
+        # operation_name_func returns always 'testing_name'
+        self.assertEqual(3, len(tracer.spans), '#A0')
+        self.assertTrue(all(map(lambda x: x.operation_name == 'testing_name', tracer.spans)),
+                         '#A1')
 
     def test_trace_matched_route(self):
         registry = DummyRegistry()

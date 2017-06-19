@@ -5,8 +5,10 @@ from pyramid.view import view_config
 import opentracing
 from pyramid_opentracing import PyramidTracer
 
-# Pass a specific Tracer instance to PyramidTracer()
-tracer = PyramidTracer(opentracing.Tracer())
+tracer = PyramidTracer(
+    opentracing.Tracer(), # Pass a specific Tracer instance to PyramidTracer()
+    operation_name_func=lambda req: 'Test-' + req.method, # optional
+)
 
 @view_config(route_name='root', renderer='json')
 def server_index(request):
