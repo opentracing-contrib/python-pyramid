@@ -1,5 +1,6 @@
 import opentracing
 
+
 # Ported from the Django library:
 # https://github.com/opentracing-contrib/python-django
 class PyramidTracer(object):
@@ -53,8 +54,12 @@ class PyramidTracer(object):
         '''
         headers = request.headers
 
-        # use the path (without GET arguments) as the operation name.
-        operation_name = request.path
+        # Use the route name (if any) as operation name,
+        # falling back to the request's method.
+        if getattr(request, 'matched_route', None) is not None:
+            operation_name = request.matched_route.name
+        else:
+            operation_name = request.method
 
         # start new span from trace info
         span = None

@@ -47,7 +47,7 @@ class TestPyramidTracer(unittest.TestCase):
 
         span = tracer._apply_tracing(req, [])
         tracer._finish_tracing(req)
-        self.assertEqual('/', span.operation_name)
+        self.assertEqual('testing_foo', span.operation_name)
 
     def test_apply_tracing_attrs(self):
         tracer = PyramidTracer(DummyTracer())
@@ -239,12 +239,12 @@ class TestTweenFactory(unittest.TestCase):
         registry.settings['ot.trace_all'] = True
         for i in xrange(1, 4):
             req = DummyRequest(path='/%s' % i, path_qs='/%s?q=123', params={'q': '123'})
-            req.matched_route = DummyRoute(i)
+            req.matched_route = DummyRoute(str(i))
             self._call(registry=registry, request=req)
 
         # We should be taking the *path* as operation_name
         self.assertEqual(3, len(tracer.spans), '#A0')
-        self.assertEqual(['/1', '/2', '/3'], map(lambda x: x.operation_name, tracer.spans), '#A1')
+        self.assertEqual(['1', '2', '3'], map(lambda x: x.operation_name, tracer.spans), '#A1')
 
     def test_trace_matched_route(self):
         registry = DummyRegistry()
@@ -272,7 +272,7 @@ class TestTweenFactory(unittest.TestCase):
         req.matched_route = None
         self._call(registry=registry, request=req)
         self.assertEqual(1, len(tracer.spans), '#A0')
-        self.assertEqual('/', tracer.spans[0].operation_name, '#A1')
+        self.assertEqual('GET', tracer.spans[0].operation_name, '#A1')
         self.assertTrue(tracer.spans[0]._is_finished, '#A2')
         self.assertEqual({
             'component': 'pyramid',
