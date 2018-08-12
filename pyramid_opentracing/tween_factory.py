@@ -1,3 +1,4 @@
+import importlib
 from pyramid.settings import asbool, aslist
 from pyramid.tweens import INGRESS
 
@@ -7,7 +8,7 @@ from .tracer import PyramidTracer
 
 def _get_function_from_name(full_name):
     mod_name, func_name = full_name.rsplit('.', 1)
-    mod = __import__(mod_name, globals(), locals(), ['object'], -1)
+    mod = importlib.import_module(mod_name)
     return getattr(mod, func_name, None)
 
 def _call_base_tracer_func(full_name, settings):

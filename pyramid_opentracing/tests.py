@@ -3,8 +3,8 @@ from pyramid import testing
 from pyramid.tweens import INGRESS
 import opentracing
 
-from tracer import PyramidTracer, default_operation_name_func
-from tween_factory import includeme, opentracing_tween_factory
+from .tracer import PyramidTracer, default_operation_name_func
+from .tween_factory import includeme, opentracing_tween_factory
 
 class TestPyramidTracer(unittest.TestCase):
     def test_ctor_default(self):
@@ -214,7 +214,7 @@ class TestTweenFactory(unittest.TestCase):
     def test_tracer_base_func(self):
         registry = DummyRegistry()
         registry.settings['component_name'] = 'MyComponent'
-        registry.settings['ot.base_tracer_func'] = 'tests.base_tracer_func'
+        registry.settings['ot.base_tracer_func'] = 'pyramid_opentracing.tests.base_tracer_func'
         registry.settings['ot.trace_all'] = True
         self._call(registry=registry)
 
@@ -262,14 +262,14 @@ class TestTweenFactory(unittest.TestCase):
 
         registry.settings['ot.base_tracer'] = tracer
         registry.settings['ot.trace_all'] = True
-        for i in xrange(1, 4):
+        for i in range(1, 4):
             req = DummyRequest(path='/%s' % i, path_qs='/%s?q=123', params={'q': '123'})
             req.matched_route = DummyRoute(str(i))
             self._call(registry=registry, request=req)
 
         # We should be taking the *path* as operation_name
         self.assertEqual(3, len(tracer.spans), '#A0')
-        self.assertEqual(['1', '2', '3'], map(lambda x: x.operation_name, tracer.spans), '#A1')
+        self.assertEqual(['1', '2', '3'], list(map(lambda x: x.operation_name, tracer.spans)), '#A1')
 
     def test_trace_operation_name_func(self):
         registry = DummyRegistry()
@@ -277,9 +277,9 @@ class TestTweenFactory(unittest.TestCase):
 
         registry.settings['ot.base_tracer'] = tracer
         registry.settings['ot.trace_all'] = True
-        registry.settings['ot.operation_name_func'] = 'tests.operation_name_func'
+        registry.settings['ot.operation_name_func'] = 'pyramid_opentracing.tests.operation_name_func'
 
-        for i in xrange(1, 4):
+        for i in range(1, 4):
             req = DummyRequest(path='/%s' % i)
             req.matched_route = DummyRoute(str(i))
             self._call(registry=registry, request=req)
@@ -297,7 +297,7 @@ class TestTweenFactory(unittest.TestCase):
         registry.settings['ot.trace_all'] = True
         registry.settings['ot.operation_name_func'] = operation_name_func
 
-        for i in xrange(1, 4):
+        for i in range(1, 4):
             req = DummyRequest(path='/%s' % i)
             req.matched_route = DummyRoute(str(i))
             self._call(registry=registry, request=req)
@@ -421,7 +421,6 @@ class TestTweenFactory(unittest.TestCase):
         self.assertIsNone(registry.settings['ot.tracer'].get_span(req), '#A0')
         self.assertEqual(1, len(tracer.spans), '#A1')
         self.assertTrue(tracer.spans[0]._is_finished, '#A2')
-        print tracer.spans[0]._tags
         self.assertEqual({
             'component': 'pyramid',
             'error': 'true',

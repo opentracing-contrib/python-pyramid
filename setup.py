@@ -17,6 +17,12 @@ setup(
         'pyramid',
         'opentracing>=1.1,<1.2'
     ],
+    extras_require={
+        'tests': [
+            'pytest>=2.7,<3',
+            'pytest-cov',
+        ],
+    },
     classifiers=[
         'Environment :: Web Environment',
         'Intended Audience :: Developers',
