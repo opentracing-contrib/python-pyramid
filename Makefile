@@ -35,6 +35,9 @@ clean-test:
 	rm -f coverage.xml
 	rm -fr htmlcov/
 
+lint:
+	flake8 $(project)
+
 test:
 	py.test -s --cov-report term-missing:skip-covered $(project)/tests.py --cov=$(project)
 

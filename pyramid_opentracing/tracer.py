@@ -12,13 +12,14 @@ def default_operation_name_func(request):
 
     return request.matched_route.name
 
+
 # Ported from the Django library:
 # https://github.com/opentracing-contrib/python-django
 class PyramidTracer(object):
-    '''
+    """
     @param tracer the OpenTracing tracer to be used
     to trace requests using this PyramidTracer
-    '''
+    """
     def __init__(self, tracer, trace_all=False, operation_name_func=None):
         self._tracer = tracer
         self._trace_all = trace_all
@@ -29,26 +30,26 @@ class PyramidTracer(object):
             self._operation_name_func = default_operation_name_func
 
     def get_span(self, request):
-        '''
-        @param request 
+        """
+        @param request
         Returns the span tracing this request
-        '''
+        """
         return self._current_spans.get(request, None)
 
     def trace(self, *attributes):
-        '''
+        """
         Function decorator that traces functions
         NOTE: Must be placed after the @view_config decorator
         @param attributes any number of pyramid.request.Request attributes
         (strings) to be set as tags on the created span
-        '''
+        """
         def decorator(view_func):
             if self._trace_all:
                 return view_func
 
             # otherwise, execute the decorator
             def wrapper(request):
-                span = self._apply_tracing(request, list(attributes))
+                self._apply_tracing(request, list(attributes))
                 try:
                     r = view_func(request)
                 except:
@@ -62,11 +63,11 @@ class PyramidTracer(object):
         return decorator
 
     def _apply_tracing(self, request, attributes):
-        '''
+        """
         Helper function to avoid rewriting for middleware and decorator.
-        Returns a new span from the request with logged attributes and 
+        Returns a new span from the request with logged attributes and
         correct operation name from the view_func.
-        '''
+        """
         headers = request.headers
 
         operation_name = self._operation_name_func(request)
@@ -74,12 +75,15 @@ class PyramidTracer(object):
         # start new span from trace info
         span = None
         try:
-            span_ctx = self._tracer.extract(opentracing.Format.HTTP_HEADERS, headers)
-            span = self._tracer.start_span(operation_name=operation_name, child_of=span_ctx)
-        except (opentracing.InvalidCarrierException, opentracing.SpanContextCorruptedException) as e:
+            span_ctx = self._tracer.extract(opentracing.Format.HTTP_HEADERS,
+                                            headers)
+            span = self._tracer.start_span(operation_name=operation_name,
+                                           child_of=span_ctx)
+        except (opentracing.InvalidCarrierException,
+                opentracing.SpanContextCorruptedException):
             span = self._tracer.start_span(operation_name=operation_name)
 
-        # add span to current spans 
+        # add span to current spans
         self._current_spans[request] = span
 
         # log any traced attributes
@@ -95,7 +99,7 @@ class PyramidTracer(object):
         return span
 
     def _finish_tracing(self, request, error=False):
-        span = self._current_spans.pop(request, None)     
+        span = self._current_spans.pop(request, None)
         if span is None:
             return
 
@@ -105,4 +109,3 @@ class PyramidTracer(object):
             span.set_tag('pyramid.route', request.matched_route.name)
 
         span.finish()
-
