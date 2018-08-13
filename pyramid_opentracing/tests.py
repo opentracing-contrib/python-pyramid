@@ -3,64 +3,64 @@ from pyramid import testing
 from pyramid.tweens import INGRESS
 import opentracing
 
-from .tracer import PyramidTracer, default_operation_name_func
+from .tracing import PyramidTracing, default_operation_name_func
 from .tween_factory import includeme, opentracing_tween_factory
 
 
-class TestPyramidTracer(unittest.TestCase):
+class TestPyramidTracing(unittest.TestCase):
     def test_ctor_default(self):
-        tracer = PyramidTracer(DummyTracer())
-        self.assertIsNotNone(tracer._tracer, '#A0')
-        self.assertFalse(tracer._trace_all, '#A1')
-        self.assertEqual({}, tracer._current_spans, '#A2')
+        tracing = PyramidTracing(DummyTracer())
+        self.assertIsNotNone(tracing._tracer, '#A0')
+        self.assertFalse(tracing._trace_all, '#A1')
+        self.assertEqual({}, tracing._current_spans, '#A2')
         self.assertEqual(default_operation_name_func,
-                         tracer._operation_name_func, '#A3')
+                         tracing._operation_name_func, '#A3')
 
     def test_ctor(self):
-        tracer = PyramidTracer(DummyTracer(), trace_all=True)
-        self.assertTrue(tracer._trace_all, '#A0')
+        tracing = PyramidTracing(DummyTracer(), trace_all=True)
+        self.assertTrue(tracing._trace_all, '#A0')
 
-        tracer = PyramidTracer(DummyTracer(), trace_all=False)
-        self.assertFalse(tracer._trace_all, '#B0')
+        tracing = PyramidTracing(DummyTracer(), trace_all=False)
+        self.assertFalse(tracing._trace_all, '#B0')
 
     def test_ctor2(self):
         def test_func(request):
             return None
 
-        tracer = PyramidTracer(DummyTracer(), operation_name_func=test_func)
-        self.assertEqual(test_func, tracer._operation_name_func, '#A0')
+        tracing = PyramidTracing(DummyTracer(), operation_name_func=test_func)
+        self.assertEqual(test_func, tracing._operation_name_func, '#A0')
 
     def test_get_span_none(self):
-        tracer = PyramidTracer(DummyTracer())
-        self.assertIsNone(tracer.get_span(DummyRequest()), '#A0')
+        tracing = PyramidTracing(DummyTracer())
+        self.assertIsNone(tracing.get_span(DummyRequest()), '#A0')
 
     def test_get_span(self):
-        tracer = PyramidTracer(DummyTracer())
+        tracing = PyramidTracing(DummyTracer())
         req = DummyRequest()
-        tracer._apply_tracing(req, [])
-        self.assertIsNotNone(tracer.get_span(req), '#B0')
-        self.assertIsNone(tracer.get_span(DummyRequest()), '#B1')
-        self.assertEqual(1, len(tracer._current_spans), '#B2')
+        tracing._apply_tracing(req, [])
+        self.assertIsNotNone(tracing.get_span(req), '#B0')
+        self.assertIsNone(tracing.get_span(DummyRequest()), '#B1')
+        self.assertEqual(1, len(tracing._current_spans), '#B2')
 
     def test_apply_tracing_invalid(self):
-        tracer = PyramidTracer(
+        tracing = PyramidTracing(
             DummyTracer(opentracing.InvalidCarrierException())
         )
-        tracer._apply_tracing(DummyRequest(), [])
+        tracing._apply_tracing(DummyRequest(), [])
 
     def test_apply_tracing_corrupted(self):
-        tracer = PyramidTracer(
+        tracing = PyramidTracing(
             DummyTracer(opentracing.SpanContextCorruptedException())
         )
-        tracer._apply_tracing(DummyRequest(), [])
+        tracing._apply_tracing(DummyRequest(), [])
 
     def test_apply_tracing_operation_name(self):
-        tracer = PyramidTracer(DummyTracer())
+        tracing = PyramidTracing(DummyTracer())
         req = DummyRequest()
         req.matched_route = DummyRoute('testing_foo')
 
-        span = tracer._apply_tracing(req, [])
-        tracer._finish_tracing(req)
+        span = tracing._apply_tracing(req, [])
+        tracing._finish_tracing(req)
         self.assertEqual('testing_foo', span.operation_name)
 
     def test_apply_tracing_operation_name_func(self):
@@ -68,30 +68,30 @@ class TestPyramidTracer(unittest.TestCase):
             self.assertIsNotNone(request)
             return 'testing_name'
 
-        tracer = PyramidTracer(DummyTracer(), operation_name_func=test_func)
+        tracing = PyramidTracing(DummyTracer(), operation_name_func=test_func)
         req = DummyRequest()
         req.matched_route = DummyRoute('testing_foo')
 
-        span = tracer._apply_tracing(req, [])
-        tracer._finish_tracing(req)
+        span = tracing._apply_tracing(req, [])
+        tracing._finish_tracing(req)
         self.assertEqual('testing_name', span.operation_name)
 
     def test_apply_tracing_attrs(self):
-        tracer = PyramidTracer(DummyTracer())
+        tracing = PyramidTracing(DummyTracer())
         req = DummyRequest()
 
         # Make sure component is available since the start.
-        span = tracer._apply_tracing(req, [])
+        span = tracing._apply_tracing(req, [])
         self.assertEqual({'component': 'pyramid'}, span._tags, 'A#0')
-        tracer._finish_tracing(req)
+        tracing._finish_tracing(req)
         self.assertEqual({'component': 'pyramid'}, span._tags, '#A1')
 
-        span = tracer._apply_tracing(req, ['dont', 'exist'])
-        tracer._finish_tracing(req)
+        span = tracing._apply_tracing(req, ['dont', 'exist'])
+        tracing._finish_tracing(req)
         self.assertEqual({'component': 'pyramid'}, span._tags, '#B0')
 
-        span = tracer._apply_tracing(req, ['host', 'path'])
-        tracer._finish_tracing(req)
+        span = tracing._apply_tracing(req, ['host', 'path'])
+        tracing._finish_tracing(req)
         self.assertEqual({
             'component': 'pyramid',
             'host': 'example.com:80',
@@ -99,46 +99,46 @@ class TestPyramidTracer(unittest.TestCase):
         }, span._tags, '#C0')
 
     def test_apply_tracing_child(self):
-        tracer = PyramidTracer(DummyTracer(returnContext=True))
-        span = tracer._apply_tracing(DummyRequest(), [])
+        tracing = PyramidTracing(DummyTracer(returnContext=True))
+        span = tracing._apply_tracing(DummyRequest(), [])
         self.assertIsNotNone(span.child_of, '#A0')
 
-        tracer = PyramidTracer(DummyTracer(returnContext=False))
-        span = tracer._apply_tracing(DummyRequest(), [])
+        tracing = PyramidTracing(DummyTracer(returnContext=False))
+        span = tracing._apply_tracing(DummyRequest(), [])
         self.assertIsNone(span.child_of, '#B0')
 
     def test_apply_tracing_matched_route(self):
-        tracer = PyramidTracer(DummyTracer())
+        tracing = PyramidTracing(DummyTracer())
         req = DummyRequest()
         req.matched_route = DummyRoute('foo')
 
-        span = tracer._apply_tracing(req, [])
-        tracer._finish_tracing(req)
+        span = tracing._apply_tracing(req, [])
+        tracing._finish_tracing(req)
         self.assertEqual({
             'component': 'pyramid',
             'pyramid.route': 'foo',
         }, span._tags, '#A0')
 
     def test_finish_none(self):
-        tracer = PyramidTracer(DummyTracer())
-        tracer._finish_tracing(DummyRequest())
+        tracing = PyramidTracing(DummyTracer())
+        tracing._finish_tracing(DummyRequest())
 
     def test_finish(self):
-        tracer = PyramidTracer(DummyTracer())
+        tracing = PyramidTracing(DummyTracer())
         req = DummyRequest()
         req.matched_route = DummyRoute()
 
-        span = tracer._apply_tracing(req, [])
-        tracer._finish_tracing(req)
+        span = tracing._apply_tracing(req, [])
+        tracing._finish_tracing(req)
         self.assertTrue(span._is_finished)
 
     def test_decorator(self):
         base_tracer = DummyTracer()
-        tracer = PyramidTracer(base_tracer)
+        tracing = PyramidTracing(base_tracer)
 
-        @tracer.trace()
+        @tracing.trace()
         def sample_func(req):
-            tracer.get_span(req).set_tag('component', 'pyramid-custom')
+            tracing.get_span(req).set_tag('component', 'pyramid-custom')
             return 'Hello, Tests!'
 
         sample_func(DummyRequest())
@@ -149,9 +149,9 @@ class TestPyramidTracer(unittest.TestCase):
 
     def test_decorator_attributes(self):
         base_tracer = DummyTracer()
-        tracer = PyramidTracer(base_tracer)
+        tracing = PyramidTracing(base_tracer)
 
-        @tracer.trace('method', 'dontexist')
+        @tracing.trace('method', 'dontexist')
         def sample_func(req):
             return 'Hello, Tests!'
 
@@ -165,10 +165,10 @@ class TestPyramidTracer(unittest.TestCase):
 
     def test_decorator_exc(self):
         base_tracer = DummyTracer()
-        tracer = PyramidTracer(base_tracer)
+        tracing = PyramidTracing(base_tracer)
         req = DummyRequest()
 
-        @tracer.trace('method')
+        @tracing.trace('method')
         def sample_func(req):
             raise ValueError('Testing exception')
 
@@ -177,7 +177,7 @@ class TestPyramidTracer(unittest.TestCase):
         except ValueError:
             pass
 
-        self.assertIsNone(tracer.get_span(req), '#A0')
+        self.assertIsNone(tracing.get_span(req), '#A0')
         self.assertEqual(1, len(base_tracer.spans), '#A1')
         self.assertTrue(base_tracer.spans[0]._is_finished, '#A2')
         self.assertEqual({
@@ -220,8 +220,8 @@ class TestTweenFactory(unittest.TestCase):
     def test_default(self):
         registry = DummyRegistry()
         self._call(registry=registry)
-        self.assertIsNotNone(registry.settings.get('ot.tracer'), '#A0')
-        self.assertFalse(registry.settings.get('ot.tracer')._trace_all, '#A1')
+        self.assertIsNotNone(registry.settings.get('ot.tracing'), '#A0')
+        self.assertFalse(registry.settings.get('ot.tracing')._trace_all, '#A1')
 
     def test_tracer_base_func(self):
         tracer_func = 'pyramid_opentracing.tests.base_tracer_func'
@@ -231,7 +231,7 @@ class TestTweenFactory(unittest.TestCase):
         registry.settings['ot.trace_all'] = True
         self._call(registry=registry)
 
-        tracer = registry.settings['ot.tracer']._tracer
+        tracer = registry.settings['ot.tracing']._tracer
         self.assertEqual(1, len(tracer.spans), '#A0')
 
         # Assert the settings information was properly
@@ -404,7 +404,7 @@ class TestTweenFactory(unittest.TestCase):
         registry.settings['ot.traced_attributes'] = ['method']
 
         def handler(req):
-            span = registry.settings['ot.tracer'].get_span(req)
+            span = registry.settings['ot.tracing'].get_span(req)
             span.set_tag('component', 'pyramid-custom')
             span.set_tag('method', 'POST')
 
@@ -441,7 +441,7 @@ class TestTweenFactory(unittest.TestCase):
         except ValueError:
             pass
 
-        self.assertIsNone(registry.settings['ot.tracer'].get_span(req), '#A0')
+        self.assertIsNone(registry.settings['ot.tracing'].get_span(req), '#A0')
         self.assertEqual(1, len(tracer.spans), '#A1')
         self.assertTrue(tracer.spans[0]._is_finished, '#A2')
         self.assertEqual({

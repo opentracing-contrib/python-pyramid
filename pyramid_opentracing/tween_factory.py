@@ -4,7 +4,7 @@ from pyramid.tweens import INGRESS
 
 import opentracing
 
-from .tracer import PyramidTracer
+from .tracing import PyramidTracing
 
 
 def _get_function_from_name(full_name):
@@ -39,8 +39,8 @@ def opentracing_tween_factory(handler, registry):
         if not callable(operation_name_func):
             operation_name_func = _get_function_from_name(operation_name_func)
 
-    tracer = PyramidTracer(base_tracer, trace_all, operation_name_func)
-    registry.settings['ot.tracer'] = tracer
+    tracing = PyramidTracing(base_tracer, trace_all, operation_name_func)
+    registry.settings['ot.tracing'] = tracing
 
     def opentracing_tween(req):
         # if tracing for all requests is disabled, continue with the
@@ -48,14 +48,14 @@ def opentracing_tween_factory(handler, registry):
         if not trace_all:
             return handler(req)
 
-        tracer._apply_tracing(req, traced_attrs)
+        tracing._apply_tracing(req, traced_attrs)
         try:
             res = handler(req)
         except:
-            tracer._finish_tracing(req, error=True)
+            tracing._finish_tracing(req, error=True)
             raise
 
-        tracer._finish_tracing(req)
+        tracing._finish_tracing(req)
         return res
 
     return opentracing_tween

@@ -15,10 +15,10 @@ def default_operation_name_func(request):
 
 # Ported from the Django library:
 # https://github.com/opentracing-contrib/python-django
-class PyramidTracer(object):
+class PyramidTracing(object):
     """
     @param tracer the OpenTracing tracer to be used
-    to trace requests using this PyramidTracer
+    to trace requests using this PyramidTracing
     """
     def __init__(self, tracer, trace_all=False, operation_name_func=None):
         self._tracer = tracer

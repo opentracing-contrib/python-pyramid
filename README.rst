@@ -59,34 +59,34 @@ Alternatively, you can configure the tween through an INI file:
     ot.trace_all = true
     ot.operation_name_func = my_main_module.get_operation_name_func
     ot.traced_attributes = host
-                          method
+                           method
     ot.base_tracer_func = my_main_module.utils.get_tracer
     pyramid.includes = pyramid_opentracing
 
-Once the tween has been included, an instance of PyramidTracer will be exist in registry.settings['ot.tracer'] for any further reference.
+Once the tween has been included, an instance of ``PyramidTracing`` will be exist in ``registry.settings['ot.tracing']`` for any further reference.
 
 **Note:** Valid request attributes to trace are listed [here](http://docs.pylonsproject.org/projects/pyramid/en/latest/api/request.html#pyramid.request.Request). When you trace an attribute, this means that created spans will have tags with the attribute name and the request's value.
 
 Tracing Individual Requests
 ===========================
 
-If you don't want to trace all requests to your site, you can use function decorators to trace individual view functions. This can be done by managing a globally unique PyramidTracer object yourself, and then adding the following lines of code to  any file that has view functions:
+If you don't want to trace all requests to your site, you can use function decorators to trace individual view functions. This can be done by managing a globally unique ``PyramidTracing`` object yourself, and then adding the following lines of code to  any file that has view functions:
 
 .. code-block:: python
 
-    # get_tracer() should return a globally-unique PyramidTracer object.
-    from my_tracer_mod import get_tracer
+    # get_tracer() should return a globally-unique PyramidTracing object.
+    from my_tracing_mod import get_tracing
 
-    tracer = get_tracer()
+    tracing = get_tracing()
 
     # put the decorator after @view_config, if used
-    @tracer.trace(optional_args)
+    @tracing.trace(optional_args)
     def some_view_func(request):
         ... #do some stuff
 
 This tracing method doesn't use the tween, so there's no need to include that one.
 
-The optional arguments allow for tracing of request attributes. For example, if you want to trace metadata, you could pass in `@tracer.trace('headers')` and request.headers would be set as a tag on all spans for this view function.
+The optional arguments allow for tracing of request attributes. For example, if you want to trace metadata, you could pass in `@tracing.trace('headers')` and request.headers would be set as a tag on all spans for this view function.
 
 Examples
 ========
@@ -94,12 +94,12 @@ Examples
 Here is an `tween example`_ of a Pyramid application that uses the Pyramid tween to log all
 requests:
 
-.. _tween example: https://github.com/carlosalberto/python-pyramid/tree/master/example/tween-example/main.py
+.. _tween example: https://github.com/opentracing-contrib/python-pyramid/tree/master/example/tween-example/main.py
 
 Here is an `client server example`_ of an application that acts as both a client and server,
 with a manually managed tracer (you will need to install the `waitress` module).
 
-.. _client server example: https://github.com/carlosalberto/python-pyramid/tree/master/example/client-server/main.py
+.. _client server example: https://github.com/opentracing-contrib/python-pyramid/tree/master/example/client-server/main.py
 
 Other examples are included under the examples directrory.
 
