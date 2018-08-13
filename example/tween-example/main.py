@@ -33,7 +33,6 @@ if __name__ == '__main__':
 
     # Tween setup
     config.add_settings({'ot.traced_attributes': ['host', 'method']})
-    config.add_settings({'ot.trace_all': True})
     config.add_settings({'ot.base_tracer': base_tracer})
     config.include('pyramid_opentracing')
 

@@ -27,7 +27,7 @@ In order to implement tracing in your system (for all the requests), add the fol
 
     # OpenTracing settings
 
-    # if not included, defaults to False
+    # defaults to True
     config.add_attributes({'ot.trace_all': True})
 
     # defaults to []

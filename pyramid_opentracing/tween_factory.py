@@ -7,6 +7,9 @@ import opentracing
 from .tracing import PyramidTracing
 
 
+DEFAULT_TWEEN_TRACE_ALL = True
+
+
 def _get_function_from_name(full_name):
     mod_name, func_name = full_name.rsplit('.', 1)
     mod = importlib.import_module(mod_name)
@@ -26,7 +29,8 @@ def opentracing_tween_factory(handler, registry):
     """
     base_tracer = registry.settings.get('ot.base_tracer', opentracing.Tracer())
     traced_attrs = aslist(registry.settings.get('ot.traced_attributes', []))
-    trace_all = asbool(registry.settings.get('ot.trace_all', False))
+    trace_all = asbool(registry.settings.get('ot.trace_all',
+                                             DEFAULT_TWEEN_TRACE_ALL))
     operation_name_func = None
 
     if 'ot.base_tracer_func' in registry.settings:

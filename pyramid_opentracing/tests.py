@@ -221,14 +221,13 @@ class TestTweenFactory(unittest.TestCase):
         registry = DummyRegistry()
         self._call(registry=registry)
         self.assertIsNotNone(registry.settings.get('ot.tracing'), '#A0')
-        self.assertFalse(registry.settings.get('ot.tracing')._trace_all, '#A1')
+        self.assertTrue(registry.settings.get('ot.tracing')._trace_all, '#A1')
 
     def test_tracer_base_func(self):
         tracer_func = 'pyramid_opentracing.tests.base_tracer_func'
         registry = DummyRegistry()
         registry.settings['component_name'] = 'MyComponent'
         registry.settings['ot.base_tracer_func'] = tracer_func
-        registry.settings['ot.trace_all'] = True
         self._call(registry=registry)
 
         tracer = registry.settings['ot.tracing']._tracer
@@ -244,17 +243,17 @@ class TestTweenFactory(unittest.TestCase):
         registry.settings['ot.base_tracer'] = tracer
 
         self._call(registry=registry)
-        self.assertEqual(0, len(tracer.spans), '#A0')
-
-        tracer._clear()
-        registry.settings['ot.trace_all'] = True
-        self._call(registry=registry)
-        self.assertEqual(1, len(tracer.spans), '#B0')
+        self.assertEqual(1, len(tracer.spans), '#A0')
 
         tracer._clear()
         registry.settings['ot.trace_all'] = False
         self._call(registry=registry)
-        self.assertEqual(0, len(tracer.spans), '#C0')
+        self.assertEqual(0, len(tracer.spans), '#B0')
+
+        tracer._clear()
+        registry.settings['ot.trace_all'] = True
+        self._call(registry=registry)
+        self.assertEqual(1, len(tracer.spans), '#C0')
 
     def test_trace_all_as_str(self):
         registry = DummyRegistry()
@@ -274,7 +273,6 @@ class TestTweenFactory(unittest.TestCase):
         tracer = DummyTracer()
 
         registry.settings['ot.base_tracer'] = tracer
-        registry.settings['ot.trace_all'] = True
         for i in range(1, 4):
             req = DummyRequest(path='/%s' % i,
                                path_qs='/%s?q=123',
@@ -293,7 +291,6 @@ class TestTweenFactory(unittest.TestCase):
         name_func = 'pyramid_opentracing.tests.operation_name_func'
 
         registry.settings['ot.base_tracer'] = tracer
-        registry.settings['ot.trace_all'] = True
         registry.settings['ot.operation_name_func'] = name_func
 
         for i in range(1, 4):
@@ -311,7 +308,6 @@ class TestTweenFactory(unittest.TestCase):
         tracer = DummyTracer()
 
         registry.settings['ot.base_tracer'] = tracer
-        registry.settings['ot.trace_all'] = True
         registry.settings['ot.operation_name_func'] = operation_name_func
 
         for i in range(1, 4):
@@ -329,7 +325,6 @@ class TestTweenFactory(unittest.TestCase):
         tracer = DummyTracer()
 
         registry.settings['ot.base_tracer'] = tracer
-        registry.settings['ot.trace_all'] = True
         req = DummyRequest()
         req.matched_route = DummyRoute('foo')
         self._call(registry=registry, request=req)
@@ -343,7 +338,6 @@ class TestTweenFactory(unittest.TestCase):
         registry = DummyRegistry()
         tracer = DummyTracer()
         registry.settings['ot.base_tracer'] = tracer
-        registry.settings['ot.trace_all'] = True
 
         # Requests without url matching should be traced too.
         req = DummyRequest()
@@ -360,7 +354,6 @@ class TestTweenFactory(unittest.TestCase):
         registry = DummyRegistry()
         tracer = DummyTracer()
         registry.settings['ot.base_tracer'] = tracer
-        registry.settings['ot.trace_all'] = True
 
         registry.settings['ot.traced_attributes'] = [
                 'path',
@@ -386,7 +379,6 @@ class TestTweenFactory(unittest.TestCase):
         registry = DummyRegistry()
         tracer = DummyTracer()
         registry.settings['ot.base_tracer'] = tracer
-        registry.settings['ot.trace_all'] = True
 
         registry.settings['ot.traced_attributes'] = 'path\nmethod\ndontexist'
         self._call(registry=registry, request=DummyRequest(path='/one'))
@@ -400,7 +392,6 @@ class TestTweenFactory(unittest.TestCase):
         registry = DummyRegistry()
         tracer = DummyTracer()
         registry.settings['ot.base_tracer'] = tracer
-        registry.settings['ot.trace_all'] = True
         registry.settings['ot.traced_attributes'] = ['method']
 
         def handler(req):
@@ -418,7 +409,6 @@ class TestTweenFactory(unittest.TestCase):
         registry = DummyRegistry()
         tracer = DummyTracer()
         registry.settings['ot.base_tracer'] = tracer
-        registry.settings['ot.trace_all'] = True
 
         req = DummyRequest()
         req.matched_route = DummyRoute()
@@ -431,7 +421,6 @@ class TestTweenFactory(unittest.TestCase):
         tracer = DummyTracer()
         req = DummyRequest()
         registry.settings['ot.base_tracer'] = tracer
-        registry.settings['ot.trace_all'] = True
 
         def handler(req):
             raise ValueError('Testing error')
