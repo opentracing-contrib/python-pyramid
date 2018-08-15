@@ -2,6 +2,7 @@ import unittest
 from pyramid import testing
 from pyramid.tweens import INGRESS
 import opentracing
+from opentracing.ext import tags
 
 from .tracing import PyramidTracing, default_operation_name_func
 from .tween_factory import includeme, opentracing_tween_factory
@@ -80,22 +81,39 @@ class TestPyramidTracing(unittest.TestCase):
         tracing = PyramidTracing(DummyTracer())
         req = DummyRequest()
 
-        # Make sure component is available since the start.
+        # Make sure a few tags are available since the start.
         span = tracing._apply_tracing(req, [])
-        self.assertEqual({'component': 'pyramid'}, span._tags, 'A#0')
+        self.assertEqual({
+            tags.COMPONENT: 'pyramid',
+            tags.HTTP_METHOD: 'GET',
+            tags.HTTP_URL: 'http://example.com',
+        }, span._tags, 'A#0')
         tracing._finish_tracing(req)
-        self.assertEqual({'component': 'pyramid'}, span._tags, '#A1')
+        self.assertEqual({
+            tags.COMPONENT: 'pyramid',
+            tags.HTTP_METHOD: 'GET',
+            tags.HTTP_URL: 'http://example.com',
+            tags.HTTP_STATUS_CODE: 200,
+        }, span._tags, '#A1')
 
         span = tracing._apply_tracing(req, ['dont', 'exist'])
         tracing._finish_tracing(req)
-        self.assertEqual({'component': 'pyramid'}, span._tags, '#B0')
+        self.assertEqual({
+            tags.COMPONENT: 'pyramid',
+            tags.HTTP_METHOD: 'GET',
+            tags.HTTP_URL: 'http://example.com',
+            tags.HTTP_STATUS_CODE: 200,
+        }, span._tags, '#B0')
 
         span = tracing._apply_tracing(req, ['host', 'path'])
         tracing._finish_tracing(req)
         self.assertEqual({
-            'component': 'pyramid',
+            tags.COMPONENT: 'pyramid',
+            tags.HTTP_METHOD: 'GET',
+            tags.HTTP_URL: 'http://example.com',
+            tags.HTTP_STATUS_CODE: 200,
             'host': 'example.com:80',
-            'path': '/'
+            'path': '/',
         }, span._tags, '#C0')
 
     def test_apply_tracing_child(self):
@@ -115,7 +133,10 @@ class TestPyramidTracing(unittest.TestCase):
         span = tracing._apply_tracing(req, [])
         tracing._finish_tracing(req)
         self.assertEqual({
-            'component': 'pyramid',
+            tags.COMPONENT: 'pyramid',
+            tags.HTTP_METHOD: 'GET',
+            tags.HTTP_URL: 'http://example.com',
+            tags.HTTP_STATUS_CODE: 200,
             'pyramid.route': 'foo',
         }, span._tags, '#A0')
 
@@ -138,13 +159,17 @@ class TestPyramidTracing(unittest.TestCase):
 
         @tracing.trace()
         def sample_func(req):
-            tracing.get_span(req).set_tag('component', 'pyramid-custom')
+            tracing.get_span(req).set_tag(tags.COMPONENT, 'pyramid-custom')
             return 'Hello, Tests!'
 
         sample_func(DummyRequest())
         self.assertEqual(1, len(base_tracer.spans), '#A0')
-        self.assertEqual({'component': 'pyramid-custom'},
-                         base_tracer.spans[0]._tags, '#A1')
+        self.assertEqual({
+            tags.COMPONENT: 'pyramid-custom',
+            tags.HTTP_METHOD: 'GET',
+            tags.HTTP_URL: 'http://example.com',
+            tags.HTTP_STATUS_CODE: 200,
+        }, base_tracer.spans[0]._tags, '#A1')
         self.assertEqual(True, base_tracer.spans[0]._is_finished, '#A2')
 
     def test_decorator_attributes(self):
@@ -158,8 +183,11 @@ class TestPyramidTracing(unittest.TestCase):
         sample_func(DummyRequest())
         self.assertEqual(1, len(base_tracer.spans), '#A0')
         self.assertEqual({
-            'component': 'pyramid',
-            'method': 'GET'
+            tags.COMPONENT: 'pyramid',
+            tags.HTTP_METHOD: 'GET',
+            tags.HTTP_URL: 'http://example.com',
+            tags.HTTP_STATUS_CODE: 200,
+            'method': 'GET',
         }, base_tracer.spans[0]._tags, '#A1')
         self.assertEqual(True, base_tracer.spans[0]._is_finished, '#A2')
 
@@ -181,8 +209,10 @@ class TestPyramidTracing(unittest.TestCase):
         self.assertEqual(1, len(base_tracer.spans), '#A1')
         self.assertTrue(base_tracer.spans[0]._is_finished, '#A2')
         self.assertEqual({
-            'component': 'pyramid',
-            'error': 'true',
+            tags.COMPONENT: 'pyramid',
+            tags.HTTP_METHOD: 'GET',
+            tags.HTTP_URL: 'http://example.com',
+            tags.ERROR: True,
             'method': 'GET',
         }, base_tracer.spans[0]._tags, '#A2')
 
@@ -330,7 +360,10 @@ class TestTweenFactory(unittest.TestCase):
         self._call(registry=registry, request=req)
         self.assertEqual(1, len(tracer.spans), '#A0')
         self.assertEqual({
-            'component': 'pyramid',
+            tags.COMPONENT: 'pyramid',
+            tags.HTTP_METHOD: 'GET',
+            tags.HTTP_URL: 'http://example.com',
+            tags.HTTP_STATUS_CODE: 200,
             'pyramid.route': 'foo',
         }, tracer.spans[0]._tags, '#A1')
 
@@ -347,7 +380,10 @@ class TestTweenFactory(unittest.TestCase):
         self.assertEqual('GET', tracer.spans[0].operation_name, '#A1')
         self.assertTrue(tracer.spans[0]._is_finished, '#A2')
         self.assertEqual({
-            'component': 'pyramid',
+            tags.COMPONENT: 'pyramid',
+            tags.HTTP_METHOD: 'GET',
+            tags.HTTP_URL: 'http://example.com',
+            tags.HTTP_STATUS_CODE: 200,
         }, tracer.spans[0]._tags, '#A3')
 
     def test_trace_tags(self):
@@ -362,7 +398,10 @@ class TestTweenFactory(unittest.TestCase):
         ]
         self._call(registry=registry, request=DummyRequest(path='/one'))
         self.assertEqual({
-            'component': 'pyramid',
+            tags.COMPONENT: 'pyramid',
+            tags.HTTP_METHOD: 'GET',
+            tags.HTTP_URL: 'http://example.com',
+            tags.HTTP_STATUS_CODE: 200,
             'path': '/one',
             'method': 'GET',
         }, tracer.spans[0]._tags, '#A0')
@@ -371,9 +410,12 @@ class TestTweenFactory(unittest.TestCase):
         registry.settings['ot.traced_attributes'] = []
         self._call(registry=registry, request=DummyRequest(path='/one'))
         self.assertEqual(1, len(tracer.spans), '#B0')
-        self.assertEqual({'component': 'pyramid'},
-                         tracer.spans[0]._tags,
-                         '#B1')
+        self.assertEqual({
+            tags.COMPONENT: 'pyramid',
+            tags.HTTP_METHOD: 'GET',
+            tags.HTTP_URL: 'http://example.com',
+            tags.HTTP_STATUS_CODE: 200,
+        }, tracer.spans[0]._tags, '#B1')
 
     def test_trace_tags_as_str(self):
         registry = DummyRegistry()
@@ -383,7 +425,10 @@ class TestTweenFactory(unittest.TestCase):
         registry.settings['ot.traced_attributes'] = 'path\nmethod\ndontexist'
         self._call(registry=registry, request=DummyRequest(path='/one'))
         self.assertEqual({
-            'component': 'pyramid',
+            tags.COMPONENT: 'pyramid',
+            tags.HTTP_METHOD: 'GET',
+            tags.HTTP_URL: 'http://example.com',
+            tags.HTTP_STATUS_CODE: 200,
             'path': '/one',
             'method': 'GET',
         }, tracer.spans[0]._tags, '#A0')
@@ -401,8 +446,11 @@ class TestTweenFactory(unittest.TestCase):
 
         self._call(handler=handler, registry=registry)
         self.assertEqual({
-            'component': 'pyramid-custom',
-            'method': 'POST'
+            tags.COMPONENT: 'pyramid-custom',
+            tags.HTTP_METHOD: 'GET',
+            tags.HTTP_URL: 'http://example.com',
+            tags.HTTP_STATUS_CODE: 200,
+            'method': 'POST',
         }, tracer.spans[0]._tags, '#A0')
 
     def test_trace_finished(self):
@@ -434,8 +482,10 @@ class TestTweenFactory(unittest.TestCase):
         self.assertEqual(1, len(tracer.spans), '#A1')
         self.assertTrue(tracer.spans[0]._is_finished, '#A2')
         self.assertEqual({
-            'component': 'pyramid',
-            'error': 'true',
+            tags.COMPONENT: 'pyramid',
+            tags.HTTP_METHOD: 'GET',
+            tags.HTTP_URL: 'http://example.com',
+            tags.ERROR: True,
         }, tracer.spans[0]._tags, '#A3')
 
 

@@ -1,4 +1,5 @@
 import opentracing
+from opentracing.ext import tags
 
 
 def default_operation_name_func(request):
@@ -86,15 +87,17 @@ class PyramidTracing(object):
         # add span to current spans
         self._current_spans[request] = span
 
+        # Standard tags.
+        span.set_tag(tags.COMPONENT, 'pyramid')
+        span.set_tag(tags.HTTP_METHOD, request.method)
+        span.set_tag(tags.HTTP_URL, request.path_url)
+
         # log any traced attributes
         for attr in attributes:
             if hasattr(request, attr):
                 payload = str(getattr(request, attr))
                 if payload:
                     span.set_tag(attr, payload)
-
-        # Put the component tag before finishing, so the user can override it.
-        span.set_tag('component', 'pyramid')
 
         return span
 
@@ -104,7 +107,10 @@ class PyramidTracing(object):
             return
 
         if error:
-            span.set_tag('error', 'true')
+            span.set_tag(tags.ERROR, True)
+        else:
+            span.set_tag(tags.HTTP_STATUS_CODE, request.response.status_code)
+
         if getattr(request, 'matched_route', None) is not None:
             span.set_tag('pyramid.route', request.matched_route.name)
 
