@@ -6,7 +6,7 @@ import opentracing
 
 
 # Replace it with an opentracing implementation.
-base_tracer = opentracing.Tracer()
+tracer = opentracing.Tracer()
 
 
 @view_config(route_name='root', renderer='json')
@@ -32,8 +32,8 @@ if __name__ == '__main__':
     config.scan()
 
     # Tween setup
+    config.add_settings({'ot.tracer': tracer})
     config.add_settings({'ot.traced_attributes': ['host', 'method']})
-    config.add_settings({'ot.base_tracer': base_tracer})
     config.include('pyramid_opentracing')
 
     app = config.make_wsgi_app()

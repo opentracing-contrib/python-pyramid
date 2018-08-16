@@ -21,14 +21,31 @@ class PyramidTracing(object):
     @param tracer the OpenTracing tracer to be used
     to trace requests using this PyramidTracing
     """
-    def __init__(self, tracer, trace_all=False, operation_name_func=None):
-        self._tracer = tracer
+    def __init__(self, tracer=None, trace_all=False, operation_name_func=None):
+        self._tracer_obj = tracer
         self._trace_all = trace_all
         self._current_spans = {}
         self._operation_name_func = operation_name_func
 
         if self._operation_name_func is None:
             self._operation_name_func = default_operation_name_func
+
+    @property
+    def _tracer(self):
+        """
+        DEPRECATED
+        """
+        return self.tracer
+
+    @property
+    def tracer(self):
+        """
+        ADD docs here.
+        """
+        if self._tracer_obj is None:
+            return opentracing.tracer
+
+        return self._tracer_obj
 
     def get_span(self, request):
         """

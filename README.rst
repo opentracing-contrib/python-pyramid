@@ -42,11 +42,12 @@ In order to implement tracing in your system (for all the requests), add the fol
     # one either one of these two values:
 
     # 1. A tracer object itself.
-    config.add_attributes({'ot.base_tracer': ...})
+    config.add_attributes({'ot.tracer': ...})
 
-    # 2. Or a module-level function that returns a tracer object,
+    # 2. Or a module-level callable that returns a tracer object,
     #    receiving the settings, such as: create_tracer(**settings)
-    config.add_attributes({'ot.base_tracer_func', 'my_main_module.utils.create_tracer')
+    #    or MyTracer(**settings)
+    config.add_attributes({'ot.tracer_callable', 'my_main_module.utils.create_tracer')
 
     # enable the tween
     config.include('pyramid_opentracing')
@@ -60,7 +61,7 @@ Alternatively, you can configure the tween through an INI file:
     ot.operation_name_func = my_main_module.get_operation_name_func
     ot.traced_attributes = host
                            method
-    ot.base_tracer_func = my_main_module.utils.get_tracer
+    ot.tracer_callable = my_main_module.utils.get_tracer
     pyramid.includes = pyramid_opentracing
 
 Once the tween has been included, an instance of ``PyramidTracing`` will be exist in ``registry.settings['ot.tracing']`` for any further reference.

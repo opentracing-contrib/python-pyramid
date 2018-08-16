@@ -56,9 +56,9 @@ def client_child_span(request):
 
 def inject_as_headers(tracing, span, request):
     text_carrier = {}
-    tracing._tracer.inject(span.context,
-                           opentracing.Format.TEXT_MAP,
-                           text_carrier)
+    tracing.tracer.inject(span.context,
+                          opentracing.Format.TEXT_MAP,
+                          text_carrier)
 
     for k, v in text_carrier.iteritems():
         request.add_header(k, v)
@@ -83,8 +83,8 @@ def server_log(request):
 @tracing.trace()
 def server_child_span(request):
     span = tracing.get_span(request)
-    child_span = tracing._tracer.start_span('child_span',
-                                            child_of=span.context)
+    child_span = tracing.tracer.start_span('child_span',
+                                           child_of=span.context)
     child_span.finish()
     return {'message': 'A child span was created'}
 
