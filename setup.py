@@ -15,7 +15,7 @@ setup(
     platforms='any',
     install_requires=[
         'pyramid',
-        'opentracing>=1.3,<2.0'
+        'opentracing>=2.0,<2.1'
     ],
     extras_require={
         'tests': [
