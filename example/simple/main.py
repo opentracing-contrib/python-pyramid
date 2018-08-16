@@ -6,9 +6,13 @@ import opentracing
 from pyramid_opentracing import PyramidTracing
 
 
+def start_span_cb(span, request):
+    span.set_operation_name('Test-' + request.method)
+
+
 tracing = PyramidTracing(
     opentracing.Tracer(),  # Pass a specific Tracer instance to PyramidTracing()
-    operation_name_func=lambda req: 'Test-' + req.method,  # optional
+    start_span_cb=start_span_cb,  # Optional
 )
 
 

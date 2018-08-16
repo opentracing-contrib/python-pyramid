@@ -5,7 +5,7 @@ from pyramid.tweens import INGRESS
 import opentracing
 from opentracing.ext import tags
 
-from .tracing import PyramidTracing, default_operation_name_func
+from .tracing import PyramidTracing
 from .tween_factory import includeme, opentracing_tween_factory
 
 
@@ -16,27 +16,30 @@ class TestPyramidTracing(unittest.TestCase):
         self.assertEquals(tracing._tracer, tracing.tracer, '#A1')
         self.assertFalse(tracing._trace_all, '#A2')
         self.assertEqual({}, tracing._current_spans, '#A3')
-        self.assertEqual(default_operation_name_func,
-                         tracing._operation_name_func, '#A4')
+        self.assertIsNone(tracing._start_span_cb, '#A4')
 
     def test_ctor_tracer(self):
         tracer = DummyTracer()
         tracing = PyramidTracing(tracer)
         self.assertEqual(tracing.tracer, tracer)
 
-    def test_ctor(self):
+    def test_ctor_trace_all(self):
         tracing = PyramidTracing(DummyTracer(), trace_all=True)
         self.assertTrue(tracing._trace_all)
 
         tracing = PyramidTracing(DummyTracer(), trace_all=False)
         self.assertFalse(tracing._trace_all)
 
-    def test_ctor2(self):
-        def test_func(request):
-            return None
+    def test_ctor_cb(self):
+        def test_func(span, request):
+            pass
 
-        tracing = PyramidTracing(DummyTracer(), operation_name_func=test_func)
-        self.assertEqual(test_func, tracing._operation_name_func, '#A0')
+        tracing = PyramidTracing(DummyTracer(), start_span_cb=test_func)
+        self.assertEqual(test_func, tracing._start_span_cb, '#A0')
+
+    def test_ctor_cb_error(self):
+        with self.assertRaises(ValueError):
+            PyramidTracing(DummyTracer(), start_span_cb=4)
 
     def test_get_span_none(self):
         tracing = PyramidTracing(DummyTracer())
@@ -78,18 +81,33 @@ class TestPyramidTracing(unittest.TestCase):
         tracing._finish_tracing(req)
         self.assertEqual('testing_foo', span.operation_name)
 
-    def test_apply_tracing_operation_name_func(self):
-        def test_func(request):
+    def test_apply_tracing_start_span_cb(self):
+        def test_func(span, request):
             self.assertIsNotNone(request)
-            return 'testing_name'
+            span.set_operation_name('testing_name')
 
-        tracing = PyramidTracing(DummyTracer(), operation_name_func=test_func)
+        tracing = PyramidTracing(DummyTracer(), start_span_cb=test_func)
         req = DummyRequest()
         req.matched_route = DummyRoute('testing_foo')
 
         span = tracing._apply_tracing(req, [])
         tracing._finish_tracing(req)
         self.assertEqual('testing_name', span.operation_name)
+
+    def test_apply_tracing_start_span_cb_exc(self):
+        def error_cb(span, request):
+            raise ValueError()
+
+        tracing = PyramidTracing(DummyTracer(), start_span_cb=error_cb)
+        req = DummyRequest()
+        req.matched_route = DummyRoute('testing_foo')
+
+        # error on the cb, but the instrumentation path stays fine.
+        span = tracing._apply_tracing(req, [])
+        self.assertFalse(span._is_finished)
+
+        tracing._finish_tracing(req)
+        self.assertTrue(span._is_finished)
 
     def test_apply_tracing_attrs(self):
         tracing = PyramidTracing(DummyTracer())
@@ -237,8 +255,8 @@ def tracer_callable(**settings):
     return tracer
 
 
-def operation_name_func(request):
-    return 'testing_name'
+def start_span_cb(span, request):
+    span.set_operation_name('testing_name')
 
 
 class TestTweenFactory(unittest.TestCase):
@@ -340,37 +358,37 @@ class TestTweenFactory(unittest.TestCase):
         self.assertEqual(list(map(lambda x: x.operation_name, tracer.spans)),
                          ['1', '2', '3'])
 
-    def test_trace_operation_name_func(self):
+    def test_trace_start_span_cb(self):
         registry = DummyRegistry()
         tracer = DummyTracer()
-        name_func = 'pyramid_opentracing.tests.operation_name_func'
+        cb_name = 'pyramid_opentracing.tests.start_span_cb'
 
         registry.settings['ot.tracer'] = tracer
-        registry.settings['ot.operation_name_func'] = name_func
+        registry.settings['ot.start_span_cb'] = cb_name
 
         for i in range(1, 4):
             req = DummyRequest(path='/%s' % i)
             req.matched_route = DummyRoute(str(i))
             self._call(registry=registry, request=req)
 
-        # 'tests.operation_name_func' returns always 'testing_name'
+        # 'tests.start_span_cb' sets operation_name to 'testing_name'
         self.assertEqual(3, len(tracer.spans), '#A0')
         self.assertTrue(all(map(lambda x: x.operation_name == 'testing_name',
                                 tracer.spans)))
 
-    def test_trace_operation_name_func2(self):
+    def test_trace_start_span_cb2(self):
         registry = DummyRegistry()
         tracer = DummyTracer()
 
         registry.settings['ot.tracer'] = tracer
-        registry.settings['ot.operation_name_func'] = operation_name_func
+        registry.settings['ot.start_span_cb'] = start_span_cb
 
         for i in range(1, 4):
             req = DummyRequest(path='/%s' % i)
             req.matched_route = DummyRoute(str(i))
             self._call(registry=registry, request=req)
 
-        # operation_name_func returns always 'testing_name'
+        # 'tests.start_span_cb' sets operation_name to 'testing_name'
         self.assertEqual(3, len(tracer.spans), '#A0')
         self.assertTrue(all(map(lambda x: x.operation_name == 'testing_name',
                                 tracer.spans)))
@@ -593,6 +611,10 @@ class DummySpan(object):
         self.child_of = child_of
         self._tags = {}
         self._is_finished = False
+
+    def set_operation_name(self, operation_name):
+        self.operation_name = operation_name
+        return self
 
     def set_tag(self, name, value):
         self._tags[name] = value

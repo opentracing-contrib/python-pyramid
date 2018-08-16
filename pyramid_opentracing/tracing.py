@@ -2,18 +2,6 @@ import opentracing
 from opentracing.ext import tags
 
 
-def default_operation_name_func(request):
-    """
-    @param request
-    Returns the request matched route name, if any, as
-    operation name, else returning the request's method.
-    """
-    if getattr(request, 'matched_route', None) is None:
-        return request.method
-
-    return request.matched_route.name
-
-
 # Ported from the Django library:
 # https://github.com/opentracing-contrib/python-django
 class PyramidTracing(object):
@@ -21,14 +9,14 @@ class PyramidTracing(object):
     @param tracer the OpenTracing tracer to be used
     to trace requests using this PyramidTracing
     """
-    def __init__(self, tracer=None, trace_all=False, operation_name_func=None):
+    def __init__(self, tracer=None, trace_all=False, start_span_cb=None):
+        if start_span_cb is not None and not callable(start_span_cb):
+            raise ValueError('start_span_cb is not callable')
+
         self._tracer_obj = tracer
         self._trace_all = trace_all
         self._current_spans = {}
-        self._operation_name_func = operation_name_func
-
-        if self._operation_name_func is None:
-            self._operation_name_func = default_operation_name_func
+        self._start_span_cb = start_span_cb
 
     @property
     def _tracer(self):
@@ -80,6 +68,12 @@ class PyramidTracing(object):
             return wrapper
         return decorator
 
+    def _get_operation_name(self, request):
+        if getattr(request, 'matched_route', None) is None:
+            return request.method
+
+        return request.matched_route.name
+
     def _apply_tracing(self, request, attributes):
         """
         Helper function to avoid rewriting for middleware and decorator.
@@ -87,8 +81,7 @@ class PyramidTracing(object):
         correct operation name from the view_func.
         """
         headers = request.headers
-
-        operation_name = self._operation_name_func(request)
+        operation_name = self._get_operation_name(request)
 
         # start new span from trace info
         span = None
@@ -116,6 +109,9 @@ class PyramidTracing(object):
                 if payload:
                     span.set_tag(attr, payload)
 
+        # invoke the start span callback, if any
+        self._call_start_span_cb(span, request)
+
         return span
 
     def _finish_tracing(self, request, error=False):
@@ -132,3 +128,13 @@ class PyramidTracing(object):
             span.set_tag('pyramid.route', request.matched_route.name)
 
         span.finish()
+
+    def _call_start_span_cb(self, span, request):
+        if self._start_span_cb is None:
+            return
+
+        try:
+            self._start_span_cb(span, request)
+        except Exception:
+            # TODO - log the error to the Span?
+            pass

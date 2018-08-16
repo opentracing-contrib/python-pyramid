@@ -29,19 +29,19 @@ def opentracing_tween_factory(handler, registry):
     traced_attrs = aslist(registry.settings.get('ot.traced_attributes', []))
     trace_all = asbool(registry.settings.get('ot.trace_all',
                                              DEFAULT_TWEEN_TRACE_ALL))
-    operation_name_func = None
+    start_span_cb = None
 
     if 'ot.tracer_callable' in registry.settings:
         tracer_callable = registry.settings.get('ot.tracer_callable')
         tracer = _call_tracer_callable(tracer_callable,
                                        registry.settings)
 
-    if 'ot.operation_name_func' in registry.settings:
-        operation_name_func = registry.settings.get('ot.operation_name_func')
-        if not callable(operation_name_func):
-            operation_name_func = _get_callable_from_name(operation_name_func)
+    if 'ot.start_span_cb' in registry.settings:
+        start_span_cb = registry.settings.get('ot.start_span_cb')
+        if not callable(start_span_cb):
+            start_span_cb = _get_callable_from_name(start_span_cb)
 
-    tracing = PyramidTracing(tracer, trace_all, operation_name_func)
+    tracing = PyramidTracing(tracer, trace_all, start_span_cb)
     registry.settings['ot.tracing'] = tracing
 
     def opentracing_tween(req):

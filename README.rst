@@ -34,9 +34,9 @@ In order to implement tracing in your system (for all the requests), add the fol
     # only valid if 'opentracing_trace_all' == True
     config.add_attributes({'ot.traced_attributes': ['host', 'method', ...]})
 
-    # a module-level function that returns the operation name for a request object.
-    # defaults to the matched route name or request's method if none.
-    config.add_attributes({'ot.operation_name_func': 'my_main_module.get_operation_name_func'})
+    # an optional module-level callable invoked after Span is created, taking
+    # span and request as parameters.
+    config.add_attributes({'ot.start_span_cb': 'my_main_module.start_span_cb'})
 
     # One valid underlying OpenTracing implementation as
     # one either one of these two values:
@@ -58,7 +58,7 @@ Alternatively, you can configure the tween through an INI file:
 
     [app:myapp]
     ot.trace_all = true
-    ot.operation_name_func = my_main_module.get_operation_name_func
+    ot.start_span_cb = my_main_module.start_span_cb
     ot.traced_attributes = host
                            method
     ot.tracer_callable = my_main_module.utils.get_tracer
