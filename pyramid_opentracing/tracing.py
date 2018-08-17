@@ -1,6 +1,8 @@
 import opentracing
 from opentracing.ext import tags
 
+from ._constants import SCOPE_ATTR
+
 
 # Ported from the Django library:
 # https://github.com/opentracing-contrib/python-django
@@ -15,7 +17,6 @@ class PyramidTracing(object):
 
         self._tracer_obj = tracer
         self._trace_all = trace_all
-        self._current_spans = {}
         self._start_span_cb = start_span_cb
 
     @property
@@ -40,7 +41,8 @@ class PyramidTracing(object):
         @param request
         Returns the span tracing this request
         """
-        return self._current_spans.get(request, None)
+        scope = getattr(request, SCOPE_ATTR, None)
+        return None if scope is None else scope.span
 
     def trace(self, *attributes):
         """
@@ -84,50 +86,52 @@ class PyramidTracing(object):
         operation_name = self._get_operation_name(request)
 
         # start new span from trace info
-        span = None
         try:
             span_ctx = self._tracer.extract(opentracing.Format.HTTP_HEADERS,
                                             headers)
-            span = self._tracer.start_span(operation_name=operation_name,
-                                           child_of=span_ctx)
+            scope = self._tracer.start_active_span(operation_name,
+                                                   child_of=span_ctx)
         except (opentracing.InvalidCarrierException,
                 opentracing.SpanContextCorruptedException):
-            span = self._tracer.start_span(operation_name=operation_name)
+            scope = self._tracer.start_active_span(operation_name)
 
         # add span to current spans
-        self._current_spans[request] = span
+        setattr(request, SCOPE_ATTR, scope)
 
         # Standard tags.
-        span.set_tag(tags.COMPONENT, 'pyramid')
-        span.set_tag(tags.HTTP_METHOD, request.method)
-        span.set_tag(tags.HTTP_URL, request.path_url)
+        scope.span.set_tag(tags.COMPONENT, 'pyramid')
+        scope.span.set_tag(tags.HTTP_METHOD, request.method)
+        scope.span.set_tag(tags.HTTP_URL, request.path_url)
 
         # log any traced attributes
         for attr in attributes:
             if hasattr(request, attr):
                 payload = str(getattr(request, attr))
                 if payload:
-                    span.set_tag(attr, payload)
+                    scope.span.set_tag(attr, payload)
 
         # invoke the start span callback, if any
-        self._call_start_span_cb(span, request)
+        self._call_start_span_cb(scope.span, request)
 
-        return span
+        return scope.span
 
     def _finish_tracing(self, request, error=False):
-        span = self._current_spans.pop(request, None)
-        if span is None:
+        scope = getattr(request, SCOPE_ATTR, None)
+        if scope is None:
             return
 
+        delattr(request, SCOPE_ATTR)
+
         if error:
-            span.set_tag(tags.ERROR, True)
+            scope.span.set_tag(tags.ERROR, True)
         else:
-            span.set_tag(tags.HTTP_STATUS_CODE, request.response.status_code)
+            scope.span.set_tag(tags.HTTP_STATUS_CODE,
+                               request.response.status_code)
 
         if getattr(request, 'matched_route', None) is not None:
-            span.set_tag('pyramid.route', request.matched_route.name)
+            scope.span.set_tag('pyramid.route', request.matched_route.name)
 
-        span.finish()
+        scope.close()
 
     def _call_start_span_cb(self, span, request):
         if self._start_span_cb is None:

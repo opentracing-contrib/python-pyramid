@@ -16,7 +16,6 @@ class TestPyramidTracing(unittest.TestCase):
         self.assertEquals(tracing.tracer, opentracing.tracer, '#A0')
         self.assertEquals(tracing._tracer, tracing.tracer, '#A1')
         self.assertFalse(tracing._trace_all, '#A2')
-        self.assertEqual({}, tracing._current_spans, '#A3')
         self.assertIsNone(tracing._start_span_cb, '#A4')
 
     def test_ctor_tracer(self):
@@ -49,10 +48,23 @@ class TestPyramidTracing(unittest.TestCase):
     def test_get_span(self):
         tracing = PyramidTracing(MockTracer())
         req = DummyRequest()
+
         tracing._apply_tracing(req, [])
         self.assertIsNotNone(tracing.get_span(req), '#B0')
-        self.assertIsNone(tracing.get_span(DummyRequest()), '#B1')
-        self.assertEqual(1, len(tracing._current_spans), '#B2')
+
+        tracing._finish_tracing(req)
+        self.assertIsNone(tracing.get_span(req), '#B2')
+
+    def test_active_span(self):
+        tracing = PyramidTracing(MockTracer())
+        req = DummyRequest()
+
+        tracing._apply_tracing(req, [])
+        self.assertIsNotNone(tracing.tracer.active_span)
+        self.assertEqual(tracing.tracer.active_span, tracing.get_span(req))
+
+        tracing._finish_tracing(req)
+        self.assertIsNone(tracing.tracer.active_span)
 
     def test_tracer(self):
         tracing = PyramidTracing()
@@ -106,9 +118,11 @@ class TestPyramidTracing(unittest.TestCase):
         # error on the cb, but the instrumentation path stays fine.
         span = tracing._apply_tracing(req, [])
         self.assertFalse(span.finished)
+        self.assertIsNotNone(tracing.tracer.active_span)
 
         tracing._finish_tracing(req)
         self.assertTrue(span.finished)
+        self.assertIsNone(tracing.tracer.active_span)
 
     def test_apply_tracing_attrs(self):
         tracing = PyramidTracing(MockTracer())
@@ -254,6 +268,8 @@ class TestPyramidTracing(unittest.TestCase):
             'method': 'GET',
         }, spans[0].tags, '#A2')
 
+        self.assertIsNone(tracing.tracer.active_span)
+
 
 def tracer_callable(**settings):
     tracer = MockTracer()
@@ -302,6 +318,7 @@ class TestTweenFactory(unittest.TestCase):
 
         tracer = registry.settings['ot.tracing'].tracer
         self.assertEqual(1, len(tracer.finished_spans()), '#A0')
+        self.assertIsNone(tracer.active_span)
 
         # Assert the settings information was properly
         # propagated.
@@ -553,6 +570,8 @@ class TestTweenFactory(unittest.TestCase):
             tags.HTTP_URL: 'http://example.com',
             tags.ERROR: True,
         }, spans[0].tags, '#A3')
+
+        self.assertIsNone(registry.settings['ot.tracing'].tracer.active_span)
 
 
 class TestIncludeme(unittest.TestCase):
