@@ -23,13 +23,6 @@ class TestPyramidTracing(unittest.TestCase):
         tracing = PyramidTracing(tracer)
         self.assertEqual(tracing.tracer, tracer)
 
-    def test_ctor_trace_all(self):
-        tracing = PyramidTracing(MockTracer(), trace_all=True)
-        self.assertTrue(tracing._trace_all)
-
-        tracing = PyramidTracing(MockTracer(), trace_all=False)
-        self.assertFalse(tracing._trace_all)
-
     def test_ctor_cb(self):
         def test_func(span, request):
             pass

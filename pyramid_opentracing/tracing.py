@@ -11,13 +11,13 @@ class PyramidTracing(object):
     @param tracer the OpenTracing tracer to be used
     to trace requests using this PyramidTracing
     """
-    def __init__(self, tracer=None, trace_all=False, start_span_cb=None):
+    def __init__(self, tracer=None, start_span_cb=None):
         if start_span_cb is not None and not callable(start_span_cb):
             raise ValueError('start_span_cb is not callable')
 
         self._tracer_obj = tracer
-        self._trace_all = trace_all
         self._start_span_cb = start_span_cb
+        self._trace_all = False
 
     @property
     def _tracer(self):

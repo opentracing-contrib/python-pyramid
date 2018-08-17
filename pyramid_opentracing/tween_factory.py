@@ -41,7 +41,8 @@ def opentracing_tween_factory(handler, registry):
         if not callable(start_span_cb):
             start_span_cb = _get_callable_from_name(start_span_cb)
 
-    tracing = PyramidTracing(tracer, trace_all, start_span_cb)
+    tracing = PyramidTracing(tracer, start_span_cb)
+    tracing._trace_all = trace_all
     registry.settings['ot.tracing'] = tracing
 
     def opentracing_tween(req):
