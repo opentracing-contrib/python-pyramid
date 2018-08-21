@@ -39,15 +39,19 @@ In order to implement tracing in your system (for all the requests), add the fol
     config.add_attributes({'ot.start_span_cb': 'my_main_module.start_span_cb'})
 
     # One valid underlying OpenTracing implementation as
-    # one either one of these two values:
+    # one either ONE of these three values:
 
-    # 1. A tracer object itself.
-    config.add_attributes({'ot.tracer': ...})
+    # 1. A PyramidTracing object.
+    config.add_attributes({'ot.tracing': PyramidTracing(my_ot_tracer)})
 
-    # 2. Or a module-level callable that returns a tracer object,
-    #    receiving the settings, such as: create_tracer(**settings)
-    #    or MyTracer(**settings)
-    config.add_attributes({'ot.tracer_callable', 'my_main_module.utils.create_tracer')
+    # 2. A module-level callable, invoked once, returning a PyramidTracing
+    #    and receiving the settings, such as: create_tracing(**settings).
+    config.add_attributes({'ot.tracing_callable', 'my_main_module.utils.create_tracing')
+
+    # 3. OR a module-level callable, invoked once, returning an opentracing
+    #    compliant Tracer with optional parameters.
+    config.add_attributes({'ot.tracer_callable', 'opentracing.Tracer'})
+    config.add_attributes({'ot.tracer_parameters', ...})
 
     # enable the tween
     config.include('pyramid_opentracing')
@@ -61,10 +65,10 @@ Alternatively, you can configure the tween through an INI file:
     ot.start_span_cb = my_main_module.start_span_cb
     ot.traced_attributes = host
                            method
-    ot.tracer_callable = my_main_module.utils.get_tracer
+    ot.tracing_callable = my_main_module.utils.create_tracing
     pyramid.includes = pyramid_opentracing
 
-Once the tween has been included, an instance of ``PyramidTracing`` will be exist in ``registry.settings['ot.tracing']`` for any further reference.
+Once the tween has been included, **if** `ot.tracing` was not directly set, a new instance will be created and will exist in ``registry.settings['ot.tracing']`` for any further consumption.
 
 **Note:** Valid request attributes to trace are listed [here](http://docs.pylonsproject.org/projects/pyramid/en/latest/api/request.html#pyramid.request.Request). When you trace an attribute, this means that created spans will have tags with the attribute name and the request's value.
 

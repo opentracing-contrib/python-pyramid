@@ -14,34 +14,42 @@ def _get_callable_from_name(full_name):
     return getattr(mod, func_name, None)
 
 
-def _call_tracer_callable(full_name, settings):
-    return _get_callable_from_name(full_name)(**settings)
-
-
 def opentracing_tween_factory(handler, registry):
     """
     The factory method is called once, and we thus retrieve the settings as
     defined on the global configuration.
-    We set the 'opentracing_tracer' in the settings too, for further reference
-    and usage.
+    We set  'ot.tracing' in the settings too in case the user didnt set
+    it himself, for further usage.
     """
-    tracer = registry.settings.get('ot.tracer', None)
+    tracing = registry.settings.get('ot.tracing', None)
     traced_attrs = aslist(registry.settings.get('ot.traced_attributes', []))
     trace_all = asbool(registry.settings.get('ot.trace_all',
                                              DEFAULT_TWEEN_TRACE_ALL))
-    start_span_cb = None
+    start_span_cb = registry.settings.get('ot.start_span_cb', None)
+
+    if start_span_cb is not None and not callable(start_span_cb):
+        start_span_cb = _get_callable_from_name(start_span_cb)
+
+    if 'ot.tracing_callable' in registry.settings:
+        tracing_callable = registry.settings.get('ot.tracing_callable')
+        if not callable(tracing_callable):
+            tracing_callable = _get_callable_from_name(tracing_callable)
+
+        tracing = tracing_callable(**registry.settings)
 
     if 'ot.tracer_callable' in registry.settings:
         tracer_callable = registry.settings.get('ot.tracer_callable')
-        tracer = _call_tracer_callable(tracer_callable,
-                                       registry.settings)
+        tracer_params = registry.settings.get('ot.tracer_parameters', {})
+        if not callable(tracer_callable):
+            tracer_callable = _get_callable_from_name(tracer_callable)
 
-    if 'ot.start_span_cb' in registry.settings:
-        start_span_cb = registry.settings.get('ot.start_span_cb')
-        if not callable(start_span_cb):
-            start_span_cb = _get_callable_from_name(start_span_cb)
+        tracer = tracer_callable(**tracer_params)
+        tracing = PyramidTracing(tracer)
 
-    tracing = PyramidTracing(tracer, start_span_cb)
+    if tracing is None:  # Fallback to the global tracer.
+        tracing = PyramidTracing()
+
+    tracing._start_span_cb = start_span_cb
     tracing._trace_all = trace_all
     registry.settings['ot.tracing'] = tracing
 
