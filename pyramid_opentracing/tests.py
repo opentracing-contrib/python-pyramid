@@ -126,12 +126,14 @@ class TestPyramidTracing(unittest.TestCase):
         span = tracing._apply_tracing(req, [])
         self.assertEqual({
             tags.COMPONENT: 'pyramid',
+            tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER,
             tags.HTTP_METHOD: 'GET',
             tags.HTTP_URL: 'http://example.com',
         }, span.tags, 'A#0')
         tracing._finish_tracing(req)
         self.assertEqual({
             tags.COMPONENT: 'pyramid',
+            tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER,
             tags.HTTP_METHOD: 'GET',
             tags.HTTP_URL: 'http://example.com',
             tags.HTTP_STATUS_CODE: 200,
@@ -141,6 +143,7 @@ class TestPyramidTracing(unittest.TestCase):
         tracing._finish_tracing(req)
         self.assertEqual({
             tags.COMPONENT: 'pyramid',
+            tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER,
             tags.HTTP_METHOD: 'GET',
             tags.HTTP_URL: 'http://example.com',
             tags.HTTP_STATUS_CODE: 200,
@@ -150,6 +153,7 @@ class TestPyramidTracing(unittest.TestCase):
         tracing._finish_tracing(req)
         self.assertEqual({
             tags.COMPONENT: 'pyramid',
+            tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER,
             tags.HTTP_METHOD: 'GET',
             tags.HTTP_URL: 'http://example.com',
             tags.HTTP_STATUS_CODE: 200,
@@ -175,13 +179,7 @@ class TestPyramidTracing(unittest.TestCase):
 
         span = tracing._apply_tracing(req, [])
         tracing._finish_tracing(req)
-        self.assertEqual({
-            tags.COMPONENT: 'pyramid',
-            tags.HTTP_METHOD: 'GET',
-            tags.HTTP_URL: 'http://example.com',
-            tags.HTTP_STATUS_CODE: 200,
-            'pyramid.route': 'foo',
-        }, span.tags, '#A0')
+        self.assertEqual(span.tags.get('pyramid.route', None), 'foo')
 
     def test_finish_none(self):
         tracing = PyramidTracing(MockTracer())
@@ -210,6 +208,7 @@ class TestPyramidTracing(unittest.TestCase):
         self.assertEqual(1, len(spans), '#A0')
         self.assertEqual({
             tags.COMPONENT: 'pyramid-custom',
+            tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER,
             tags.HTTP_METHOD: 'GET',
             tags.HTTP_URL: 'http://example.com',
             tags.HTTP_STATUS_CODE: 200,
@@ -229,6 +228,7 @@ class TestPyramidTracing(unittest.TestCase):
         self.assertEqual(1, len(spans), '#A0')
         self.assertEqual({
             tags.COMPONENT: 'pyramid',
+            tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER,
             tags.HTTP_METHOD: 'GET',
             tags.HTTP_URL: 'http://example.com',
             tags.HTTP_STATUS_CODE: 200,
@@ -256,6 +256,7 @@ class TestPyramidTracing(unittest.TestCase):
         self.assertTrue(spans[0].finished, '#A2')
         self.assertEqual({
             tags.COMPONENT: 'pyramid',
+            tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER,
             tags.HTTP_METHOD: 'GET',
             tags.HTTP_URL: 'http://example.com',
             tags.ERROR: True,
@@ -452,13 +453,7 @@ class TestTweenFactory(unittest.TestCase):
 
         spans = tracer.finished_spans()
         self.assertEqual(1, len(spans), '#A0')
-        self.assertEqual({
-            tags.COMPONENT: 'pyramid',
-            tags.HTTP_METHOD: 'GET',
-            tags.HTTP_URL: 'http://example.com',
-            tags.HTTP_STATUS_CODE: 200,
-            'pyramid.route': 'foo',
-        }, spans[0].tags, '#A1')
+        self.assertEqual(spans[0].tags.get('pyramid.route', None), 'foo')
 
     def test_trace_operation_name_matched_none(self):
         registry = DummyRegistry()
@@ -476,6 +471,7 @@ class TestTweenFactory(unittest.TestCase):
         self.assertTrue(spans[0].finished, '#A2')
         self.assertEqual({
             tags.COMPONENT: 'pyramid',
+            tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER,
             tags.HTTP_METHOD: 'GET',
             tags.HTTP_URL: 'http://example.com',
             tags.HTTP_STATUS_CODE: 200,
@@ -496,6 +492,7 @@ class TestTweenFactory(unittest.TestCase):
         self.assertEqual(1, len(spans), '#A0')
         self.assertEqual({
             tags.COMPONENT: 'pyramid',
+            tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER,
             tags.HTTP_METHOD: 'GET',
             tags.HTTP_URL: 'http://example.com',
             tags.HTTP_STATUS_CODE: 200,
@@ -510,6 +507,7 @@ class TestTweenFactory(unittest.TestCase):
         self.assertEqual(1, len(spans), '#B0')
         self.assertEqual({
             tags.COMPONENT: 'pyramid',
+            tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER,
             tags.HTTP_METHOD: 'GET',
             tags.HTTP_URL: 'http://example.com',
             tags.HTTP_STATUS_CODE: 200,
@@ -526,6 +524,7 @@ class TestTweenFactory(unittest.TestCase):
         self.assertEqual(1, len(spans), '#A0')
         self.assertEqual({
             tags.COMPONENT: 'pyramid',
+            tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER,
             tags.HTTP_METHOD: 'GET',
             tags.HTTP_URL: 'http://example.com',
             tags.HTTP_STATUS_CODE: 200,
@@ -549,6 +548,7 @@ class TestTweenFactory(unittest.TestCase):
         self.assertEqual(1, len(spans))
         self.assertEqual({
             tags.COMPONENT: 'pyramid-custom',
+            tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER,
             tags.HTTP_METHOD: 'GET',
             tags.HTTP_URL: 'http://example.com',
             tags.HTTP_STATUS_CODE: 200,
@@ -588,6 +588,7 @@ class TestTweenFactory(unittest.TestCase):
         self.assertTrue(spans[0].finished, '#A2')
         self.assertEqual({
             tags.COMPONENT: 'pyramid',
+            tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER,
             tags.HTTP_METHOD: 'GET',
             tags.HTTP_URL: 'http://example.com',
             tags.ERROR: True,

@@ -100,6 +100,7 @@ class PyramidTracing(object):
 
         # Standard tags.
         scope.span.set_tag(tags.COMPONENT, 'pyramid')
+        scope.span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_RPC_SERVER)
         scope.span.set_tag(tags.HTTP_METHOD, request.method)
         scope.span.set_tag(tags.HTTP_URL, request.path_url)
 
