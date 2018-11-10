@@ -62,8 +62,8 @@ def opentracing_tween_factory(handler, registry):
         tracing._apply_tracing(req, traced_attrs)
         try:
             res = handler(req)
-        except:
-            tracing._finish_tracing(req, error=True)
+        except Exception as e:
+            tracing._finish_tracing(req, error=e)
             raise
 
         tracing._finish_tracing(req)

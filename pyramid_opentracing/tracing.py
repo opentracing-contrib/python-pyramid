@@ -59,8 +59,8 @@ class PyramidTracing(object):
                 self._apply_tracing(request, list(attributes))
                 try:
                     r = view_func(request)
-                except:
-                    self._finish_tracing(request, error=True)
+                except Exception as e:
+                    self._finish_tracing(request, error=e)
                     raise
 
                 self._finish_tracing(request)
@@ -115,15 +115,19 @@ class PyramidTracing(object):
 
         return scope.span
 
-    def _finish_tracing(self, request, error=False):
+    def _finish_tracing(self, request, error=None):
         scope = getattr(request, SCOPE_ATTR, None)
         if scope is None:
             return
 
         delattr(request, SCOPE_ATTR)
 
-        if error:
+        if error is not None:
             scope.span.set_tag(tags.ERROR, True)
+            scope.span.log_kv({
+                'event': tags.ERROR,
+                'error.object': error,
+            })
         else:
             scope.span.set_tag(tags.HTTP_STATUS_CODE,
                                request.response.status_code)

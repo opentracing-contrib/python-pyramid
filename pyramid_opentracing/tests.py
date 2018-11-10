@@ -263,6 +263,14 @@ class TestPyramidTracing(unittest.TestCase):
             'method': 'GET',
         }, spans[0].tags, '#A2')
 
+        logs = spans[0].logs
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs[0].key_values.get('event', None),
+                         tags.ERROR)
+        self.assertTrue(isinstance(
+            logs[0].key_values.get('error.object', None), ValueError
+        ))
+
         self.assertIsNone(tracing.tracer.active_span)
 
 
@@ -609,6 +617,14 @@ class TestTweenFactory(unittest.TestCase):
             tags.HTTP_URL: 'http://example.com',
             tags.ERROR: True,
         }, spans[0].tags, '#A3')
+
+        logs = spans[0].logs
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs[0].key_values.get('event', None),
+                         tags.ERROR)
+        self.assertTrue(isinstance(
+            logs[0].key_values.get('error.object', None), ValueError
+        ))
 
         self.assertIsNone(registry.settings['ot.tracing'].tracer.active_span)
 
