@@ -378,6 +378,22 @@ class TestTweenFactory(unittest.TestCase):
         self._call(registry=registry)
         self.assertEqual(1, len(tracer.finished_spans()), '#A0')
 
+    # Should not cause a duplicated trace in case the user
+    # decorated a handler *and* is also using trace_all=True.
+    def test_trace_all_with_decorator(self):
+        registry = DummyRegistry()
+        tracer = MockTracer()
+        tracing = PyramidTracing(tracer)
+
+        @tracing.trace()
+        def sample_func(req):
+            return 'Hello, Tests!'
+
+        registry.settings['ot.tracing'] = tracing
+        registry.settings['ot.trace_all'] = True
+        self._call(handler=sample_func, registry=registry)
+        self.assertEqual(1, len(tracer.finished_spans()), '#A0')
+
     def test_tracer_property(self):
         registry = DummyRegistry()
         self._call(registry=registry)

@@ -56,7 +56,7 @@ def opentracing_tween_factory(handler, registry):
     def opentracing_tween(req):
         # if tracing for all requests is disabled, continue with the
         # normal handlers flow and return immediately.
-        if not trace_all:
+        if not tracing._trace_all:
             return handler(req)
 
         tracing._apply_tracing(req, traced_attrs)

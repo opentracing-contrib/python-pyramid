@@ -52,11 +52,10 @@ class PyramidTracing(object):
         (strings) to be set as tags on the created span
         """
         def decorator(view_func):
-            if self._trace_all:
-                return view_func
-
-            # otherwise, execute the decorator
             def wrapper(request):
+                if self._trace_all:
+                    return view_func(request)
+
                 self._apply_tracing(request, list(attributes))
                 try:
                     r = view_func(request)
