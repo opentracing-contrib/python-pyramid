@@ -280,6 +280,10 @@ def tracing_callable(**settings):
     return PyramidTracing(tracer)
 
 
+def base_tracer_callable(**settings):
+    return MockTracer()
+
+
 def start_span_cb(span, request):
     span.set_operation_name('testing_name')
 
@@ -354,6 +358,35 @@ class TestTweenFactory(unittest.TestCase):
         self.assertTrue(isinstance(tracer, MockTracer))
         self.assertEqual(tracer_parameters['scope_manager'],
                          tracer.scope_manager)
+
+    def test_deprecated_base_tracer(self):
+        base_tracer = MockTracer()
+        registry = DummyRegistry()
+        registry.settings['ot.base_tracer'] = base_tracer
+        self._call(registry=registry)
+
+        self.assertIsNotNone(registry.settings.get('ot.tracing', None))
+        self.assertEqual(registry.settings.get('ot.tracing').tracer,
+                         base_tracer)
+
+    def test_deprecated_base_tracer_func(self):
+        registry = DummyRegistry()
+        registry.settings['ot.base_tracer_func'] = base_tracer_callable
+        self._call(registry=registry)
+
+        self.assertIsNotNone(registry.settings.get('ot.tracing', None))
+        self.assertTrue(isinstance(registry.settings.get('ot.tracing').tracer,
+                        MockTracer))
+
+    def test_deprecated_base_tracer_func_str(self):
+        base_tracer_func_str = 'pyramid_opentracing.tests.base_tracer_callable'
+        registry = DummyRegistry()
+        registry.settings['ot.base_tracer_func'] = base_tracer_func_str
+        self._call(registry=registry)
+
+        self.assertIsNotNone(registry.settings.get('ot.tracing', None))
+        self.assertTrue(isinstance(registry.settings.get('ot.tracing').tracer,
+                        MockTracer))
 
     def test_trace_all(self):
         registry = DummyRegistry()

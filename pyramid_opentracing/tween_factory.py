@@ -14,6 +14,21 @@ def _get_callable_from_name(full_name):
     return getattr(mod, func_name, None)
 
 
+def _get_deprecated_base_tracer(registry):
+    base_tracer = registry.settings.get('ot.base_tracer', None)
+    if base_tracer is not None:
+        return base_tracer
+
+    base_tracer_func = registry.settings.get('ot.base_tracer_func', None)
+    if base_tracer_func is None:  # Nothing to do here.
+        return None
+
+    if not callable(base_tracer_func):
+        base_tracer_func = _get_callable_from_name(base_tracer_func)
+
+    return base_tracer_func(**registry.settings)
+
+
 def opentracing_tween_factory(handler, registry):
     """
     The factory method is called once, and we thus retrieve the settings as
@@ -45,6 +60,11 @@ def opentracing_tween_factory(handler, registry):
 
         tracer = tracer_callable(**tracer_params)
         tracing = PyramidTracing(tracer)
+
+    # Try to use the deprecated names.
+    base_tracer = _get_deprecated_base_tracer(registry)
+    if base_tracer is not None:
+        tracing = PyramidTracing(base_tracer)
 
     if tracing is None:  # Fallback to the global tracer.
         tracing = PyramidTracing()
