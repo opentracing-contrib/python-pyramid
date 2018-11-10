@@ -8,8 +8,11 @@ As core services and libraries adopt OpenTracing, the application builder is no 
 
 If you want to learn more about the underlying python API, visit the python `source code`_.
 
+If you are migrating from the 0.x series, you may want to read the list of `breaking changes`_.
+
 .. _The OpenTracing Project: http://opentracing.io/
 .. _source code: https://github.com/opentracing/opentracing-python
+.. _breaking changes: #breaking-changes-from-0-x
 
 Installation
 ============
@@ -107,6 +110,18 @@ with a manually managed tracer (you will need to install the `waitress` module).
 .. _client server example: https://github.com/opentracing-contrib/python-pyramid/tree/master/example/client-server/main.py
 
 Other examples are included under the examples directrory.
+
+Breaking changes from 0.x
+=========================
+
+Starting with the 1.0 version, a few changes have taken place from previous versions:
+
+* ``PyramidTracer`` has been renamed to ``PyramidTracing``, although ``PyramidTracer``
+  can be used still as a deprecated name.
+* ``ot.base_tracer`` and ``ot.base_tracer_func`` still work, but have been deprecated.
+* When using the Tween layer, ``ot.trace_all`` defaults to ``True``.
+* When no ``opentracing.Tracer`` is provided, ``PyramidTracing`` will rely on the
+  global tracer.
 
 Further Information
 ===================
