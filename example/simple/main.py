@@ -30,8 +30,7 @@ def server_simple(request):
 @view_config(route_name='log', renderer='json')
 @tracing.trace()
 def server_log(request):
-    span = tracing.get_span(request)
-    span.log_event('Hello, World!')
+    tracing.tracer.active_span.log_event('Hello, World!')
     return {'message': 'Something was logged'}
 
 
