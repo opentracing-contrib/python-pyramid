@@ -3,28 +3,36 @@ from pyramid.config import Configurator
 from pyramid.view import view_config
 
 import opentracing
-from pyramid_opentracing import PyramidTracer
+from pyramid_opentracing import PyramidTracing
 
-tracer = PyramidTracer(
-    opentracing.Tracer(), # Pass a specific Tracer instance to PyramidTracer()
-    operation_name_func=lambda req: 'Test-' + req.method, # optional
+
+def start_span_cb(span, request):
+    span.set_operation_name('Test-' + request.method)
+
+
+tracing = PyramidTracing(
+    opentracing.Tracer(),  # Pass a specific Tracer instance to PyramidTracing()
+    start_span_cb=start_span_cb,  # Optional
 )
+
 
 @view_config(route_name='root', renderer='json')
 def server_index(request):
-    return { 'message': 'Hello world!' }
+    return {'message': 'Hello world!'}
+
 
 @view_config(route_name='simple', renderer='json')
-@tracer.trace('method')
+@tracing.trace('method')
 def server_simple(request):
-    return { 'message': 'This is a simple traced request.' }
+    return {'message': 'This is a simple traced request.'}
+
 
 @view_config(route_name='log', renderer='json')
-@tracer.trace()
+@tracing.trace()
 def server_log(request):
-    span = tracer.get_span(request)
-    span.log_event('Hello, World!')
-    return { 'message': 'Something was logged' }
+    tracing.tracer.active_span.log_event('Hello, World!')
+    return {'message': 'Something was logged'}
+
 
 if __name__ == '__main__':
     config = Configurator()
@@ -36,4 +44,3 @@ if __name__ == '__main__':
     app = config.make_wsgi_app()
     server = make_server('127.0.0.1', 8080, app)
     server.serve_forever()
-

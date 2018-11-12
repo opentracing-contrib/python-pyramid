@@ -1,7 +1,17 @@
+project := pyramid_opentracing
+
 .PHONY: test publish install clean clean-build clean-pyc clean-test build
 
 install: 
 	python setup.py install
+
+check-virtual-env:
+	@echo virtual-env: $${VIRTUAL_ENV?"Please run in virtual-env"}
+
+bootstrap: check-virtual-env
+	pip install -r requirements.txt
+	pip install -r requirements-test.txt
+	python setup.py develop
 
 clean: clean-build clean-pyc clean-test
 
@@ -25,8 +35,11 @@ clean-test:
 	rm -f coverage.xml
 	rm -fr htmlcov/
 
+lint:
+	flake8 $(project)
+
 test:
-	py.test -s --cov=pyramid_opentracing pyramid_opentracing/tests.py
+	py.test -s --cov-report term-missing:skip-covered $(project)/tests.py --cov=$(project)
 
 build: 
 	python setup.py build

@@ -15,8 +15,17 @@ setup(
     platforms='any',
     install_requires=[
         'pyramid',
-        'opentracing>=1.1,<1.2'
+        'opentracing>=2.0,<2.1'
     ],
+    extras_require={
+        'tests': [
+            'flake8<3',  # see https://github.com/zheller/flake8-quotes/issues/29
+            'flake8-quotes',
+            'mock<1.1.0',
+            'pytest>=2.7,<3',
+            'pytest-cov',
+        ],
+    },
     classifiers=[
         'Environment :: Web Environment',
         'Intended Audience :: Developers',
